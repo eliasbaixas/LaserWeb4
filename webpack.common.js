@@ -140,5 +140,8 @@ module.exports = {
     },
     plugins: [
         new webpack.ProvidePlugin({$: 'jquery', jQuery: 'jquery'}),
+        // webpack 5 no longer shims Node globals; react-draggable and others
+        // reference bare `process.env.*` (e.g. DRAGGABLE_DEBUG) at runtime.
+        new webpack.ProvidePlugin({process: 'process/browser.js'}),
     ],
 };

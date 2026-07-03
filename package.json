@@ -76,6 +76,7 @@
     "object-to-string": "^1.0.0",
     "poly2tri": "^1.5.0",
     "prefix-keys": "^1.0.0",
+    "process": "^0.11.10",
     "queue": "^6.0.2",
     "react": "^18.3.1",
     "react-bootstrap": "^0.31.5",
