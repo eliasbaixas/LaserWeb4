@@ -1,9 +1,9 @@
 /**
  * Onboarding cards for the Files pane, shown while the workspace is empty
- * (no documents, no operations). One card for shared concepts plus one per
- * pipeline — vector and raster — which reach G-code in fundamentally
- * different ways. Each card collapses independently and remembers its
- * state in localStorage.
+ * (no documents, no operations). One card with the shared concepts and one
+ * with the workflow as explicit phases: a branch on the source type
+ * (vector vs raster) that converges into Generate -> Run. Each card
+ * collapses independently and remembers its state in localStorage.
  * @module
  */
 
@@ -32,7 +32,7 @@ function GuideCard({ storageKey, bsStyle, icon, title, children }) {
                 <span style={{ float: 'right' }}><Icon name={collapsed ? 'chevron-down' : 'chevron-up'} /></span>
             </div>
             {!collapsed &&
-                <div className="panel-body" style={{ padding: 8, fontSize: 12, overflowY: 'auto', maxHeight: '40vh' }}>
+                <div className="panel-body" style={{ padding: 8, fontSize: 12, overflowY: 'auto', maxHeight: '50vh' }}>
                     {children}
                 </div>}
         </div>
@@ -44,6 +44,35 @@ function Term({ icon, name, children }) {
         <p style={{ marginBottom: 6 }}>
             <strong><Icon name={icon} fw /> {name}</strong> — {children}
         </p>
+    )
+}
+
+function Phase({ n, title, children }) {
+    return (
+        <div style={{ marginBottom: 8 }}>
+            <div style={{ marginBottom: 4 }}>
+                <span className="badge" style={{ marginRight: 6 }}>{n}</span>
+                <strong>{title}</strong>
+            </div>
+            {children}
+        </div>
+    )
+}
+
+const BRANCH_COLORS = { info: '#31708f', warning: '#8a6d3b' }
+
+function Branch({ letter, bsStyle, icon, title, children }) {
+    return (
+        <div style={{
+            margin: '4px 0 8px 10px', padding: '4px 8px',
+            borderLeft: `3px solid ${BRANCH_COLORS[bsStyle]}`
+        }}>
+            <div style={{ marginBottom: 4, color: BRANCH_COLORS[bsStyle] }}>
+                <span className="badge" style={{ marginRight: 6 }}>{letter}</span>
+                <strong><Icon name={icon} /> {title}</strong>
+            </div>
+            {children}
+        </div>
     )
 }
 
@@ -62,56 +91,68 @@ export function CamGuide() {
                 </Term>
                 <Term icon="file-image-o" name="Document">
                     a design file you import with <em>Add Document</em>. Its type decides
-                    the pipeline below: <strong>vector</strong> (SVG, DXF — paths and
+                    the workflow branch: <strong>vector</strong> (SVG, DXF — paths and
                     curves) or <strong>raster</strong> (PNG, JPG, BMP — a grid of pixels).
                     Ready-made <code>.gcode</code> files can also be loaded directly.
                 </Term>
                 <Term icon="file-code-o" name="G-code">
-                    the machine's own language, and the end product of both pipelines: a
-                    plain-text list of moves and tool commands (<code>G0</code>/<code>G1</code>{' '}
-                    to travel, <code>M3</code>/<code>M4</code>/<code>M5</code> tool on/off,{' '}
-                    <code>S</code> for power). <em>Generate</em> compiles your operations
-                    into G-code and previews the toolpath on the workspace.
+                    the machine's own language, and where both branches end: a plain-text
+                    list of moves and tool commands (<code>G0</code>/<code>G1</code> to
+                    travel, <code>M3</code>/<code>M4</code>/<code>M5</code> tool on/off,{' '}
+                    <code>S</code> for power).
                 </Term>
             </GuideCard>
 
-            <GuideCard storageKey="vector" bsStyle="info" icon="pencil" title="Vector → CNC (SVG, DXF)">
-                <p style={{ marginBottom: 6 }}>
-                    The head <strong>follows the drawing's paths</strong>: outlines are
-                    cut, lines are engraved — and for a pen plotter, drawn. The G-code
-                    traces the same geometry you see, with the tool switched on along
-                    each path and off between them.
-                </p>
-                <ol style={{ marginBottom: 0, paddingLeft: 20 }}>
-                    <li><em>Add Document</em> (SVG/DXF) and place it on the workspace</li>
-                    <li>Drag it onto <em>Operations</em>: <em>Laser Cut</em> or <em>Laser Engrave</em></li>
-                    <li>Tune feed, power and passes</li>
-                    <li><em>Generate</em> and check the preview — you should recognize your drawing</li>
-                    <li>Connect in <em>Comms</em> and run the job</li>
-                </ol>
-            </GuideCard>
-
-            <GuideCard storageKey="raster" bsStyle="warning" icon="picture-o" title="Raster → CNC (PNG, JPG, BMP)">
-                <p style={{ marginBottom: 6 }}>
-                    The image is <strong>not vectorized</strong>. Like a printer, the
-                    machine sweeps the area <strong>line by line</strong> and modulates
-                    laser power per pixel (the <code>S</code> value changes continuously
-                    along each pass): dark pixels burn more, light ones less. That is how
-                    photos get engraved — and why bitmaps are welcome on a laser.
-                </p>
-                <ol style={{ marginBottom: 6, paddingLeft: 20 }}>
-                    <li><em>Add Document</em> (PNG/JPG/BMP)</li>
-                    <li>Drag it onto <em>Operations</em>: <em>Laser Raster</em></li>
-                    <li>Tune line spacing (resolution), speed and max power</li>
-                    <li><em>Generate</em> — expect many scanlines and a large file</li>
-                    <li>Connect in <em>Comms</em> and run the job</li>
-                </ol>
-                <p style={{ marginBottom: 0 }}>
-                    <Icon name="info-circle" /> <em>Pen plotters:</em> a pen is on/off and
-                    cannot burn "50% gray", so this pipeline does not apply — convert
-                    bitmaps to strokes first (hatching, dithering, tracing) and feed the
-                    result through the vector pipeline.
-                </p>
+            <GuideCard storageKey="flow" bsStyle="success" icon="road" title="The workflow, phase by phase">
+                <Phase n="1" title="Raster or vector?">
+                    <p style={{ marginBottom: 4 }}>
+                        Look at your source file — it decides the branch:
+                    </p>
+                    <Branch letter="1A" bsStyle="info" icon="pencil" title="Vector (SVG, DXF)">
+                        <p style={{ marginBottom: 4 }}>
+                            Paths and curves. The head will <strong>follow your
+                            drawing</strong> — this is cutting, line engraving, and pen
+                            plotting.
+                        </p>
+                        <ol style={{ marginBottom: 0, paddingLeft: 18 }}>
+                            <li><em>Add Document</em> and place it on the workspace</li>
+                            <li>Drag it onto <em>Operations</em>: <em>Laser Cut</em> or <em>Laser Engrave</em></li>
+                            <li>Tune feed, power and passes</li>
+                        </ol>
+                    </Branch>
+                    <Branch letter="1B" bsStyle="warning" icon="picture-o" title="Raster (PNG, JPG, BMP)">
+                        <p style={{ marginBottom: 4 }}>
+                            Pixels, <strong>never vectorized</strong>. Like a printer, the
+                            machine sweeps the image <strong>line by line</strong>, modulating
+                            power per pixel (<code>S</code> varies continuously): dark pixels
+                            burn more. This is how photos get engraved.
+                        </p>
+                        <ol style={{ marginBottom: 4, paddingLeft: 18 }}>
+                            <li><em>Add Document</em> and place it on the workspace</li>
+                            <li>Drag it onto <em>Operations</em>: <em>Laser Raster</em></li>
+                            <li>Tune line spacing (resolution), speed and max power</li>
+                        </ol>
+                        <p style={{ marginBottom: 0 }}>
+                            <Icon name="info-circle" /> <em>Pen plotters:</em> a pen cannot
+                            draw "50% gray" — convert bitmaps to strokes first (hatching,
+                            dithering, tracing) and take branch 1A instead.
+                        </p>
+                    </Branch>
+                </Phase>
+                <Phase n="2" title="Generate (branches converge here)">
+                    <p style={{ marginBottom: 0 }}>
+                        <em>Generate</em> compiles every enabled operation into a single
+                        G-code program. Check the toolpath preview on the workspace — for
+                        vector work you should recognize your drawing; raster shows as a
+                        dense block of scanlines.
+                    </p>
+                </Phase>
+                <Phase n="3" title="Run">
+                    <p style={{ marginBottom: 0 }}>
+                        Connect to the machine in <em>Comms</em>, home it, then run the
+                        job and watch progress and live position in <em>Control</em>.
+                    </p>
+                </Phase>
             </GuideCard>
         </div>
     )
