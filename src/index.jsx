@@ -92,6 +92,8 @@ const middleware = composeEnhancers(
 
 const store = createStore(reducer, middleware);
 
+require('./lib/history-sync').initHistorySync(store);
+
 // Bad bad bad
 export function GlobalStore()
 {
