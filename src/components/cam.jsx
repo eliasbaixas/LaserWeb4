@@ -35,6 +35,7 @@ import { ApplicationSnapshotToolbar } from './settings';
 
 import { Button, ButtonToolbar, ButtonGroup, ProgressBar, Alert } from 'react-bootstrap'
 import Icon from './font-awesome'
+import CamGuide from './cam-guide'
 import { prompt, confirm } from './laserweb'
 
 import CommandHistory from './command-history'
@@ -213,6 +214,7 @@ export function Cam() {
                 </div>
             </div>
             <div className="Resizer horizontal" style={{ marginTop: '2px', marginBottom: '2px' }}></div>
+            <CamGuide />
             <div ref={boundsRef} className="panel panel-info" style={{ marginBottom: 3 }}>
                 <div className="panel-heading" style={{ padding: 2 }}>
                     <table style={{ width: 100 + '%' }}>
