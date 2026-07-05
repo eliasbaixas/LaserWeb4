@@ -131,7 +131,10 @@ export const OPERATION_DEFAULTS = (state) => {
         startHeight: state.settings.machineZStartHeight,
         aAxisDiameter: state.settings.machineAAxisDiameter,
         segmentLength:  state.settings.gcodeSegmentLength,
-        // last-used values win over machine-derived defaults
+        // sane factory seeds instead of 0 (0 mm/min generates no movement)
+        cutRate: 400,
+        plungeRate: 100,
+        // last-used values win over machine-derived defaults and seeds
         ...rememberedOperationValues(),
     }
 }
