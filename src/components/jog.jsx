@@ -51,6 +51,15 @@ $('body').on('keyup', function (ev) {
 
 let liveJoggingState = { hasHomed: false, active: false, disabled: true }
 
+// Control 2.0 drives the same flag the workspace ALT+click handler reads
+// (LiveJogging.isEnabled), so both control surfaces stay interchangeable.
+export function setLiveJoggingState(attrs) {
+    liveJoggingState = { ...liveJoggingState, ...attrs }
+}
+export function getLiveJoggingState() {
+    return { ...liveJoggingState }
+}
+
 function Divider() {
     return <li role="separator" className="divider"></li>;
 }

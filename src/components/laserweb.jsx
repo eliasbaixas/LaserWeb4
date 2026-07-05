@@ -33,7 +33,7 @@ import WorkspaceSwitcher from './workspace-switcher'
 
 // Inner components
 import Com from './com'
-import Jog from './jog'
+import ControlSwitcher from './control-switcher'
 import Cam from './cam'
 import Quote from './quote'
 import Settings from './settings'
@@ -191,7 +191,7 @@ class LaserWeb extends React.Component {
                         <Sidebar ref="sidebar" style={{ flexGrow: 0, flexShrink: 0 }}>
                             <Cam id="cam" title={t("Files")} icon="pencil-square-o" />
                             <Com id="com" title={t("Comms")} icon="plug" />
-                            <Jog id="jog" title={t("Control")} icon="arrows-alt" />
+                            <ControlSwitcher id="jog" title={t("Control")} icon="arrows-alt" />
                             <Settings id="settings" title={t("Settings")} icon="cogs" />
                             <About id="about" title={t("About")} icon="question" />
                         </Sidebar>

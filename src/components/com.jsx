@@ -4,7 +4,14 @@ import { connect } from 'react-redux';
 import { PanelGroup, Panel, ButtonGroup, Collapse, Button, Glyphicon } from 'react-bootstrap';
 
 import { Input, TextField, NumberField, ToggleField, SelectField, Info } from './forms';
-import { runStatus } from './jog';
+import { runStatus as jogRunStatus } from './jog';
+
+// Every call site updates the module-level playing/paused flags first, so
+// wrapping the legacy jQuery updater is enough to keep redux in sync.
+function runStatus(status) {
+    jogRunStatus(status);
+    if (dispatchRef) dispatchRef(setComAttrs({ playing, paused }));
+}
 import { setSettingsAttrs } from '../actions/settings';
 import { setComAttrs } from '../actions/com';
 import { setWorkspaceAttrs } from '../actions/workspace';
@@ -409,6 +416,7 @@ class Com extends React.Component {
             feedOvCurrent = parseInt(data) || 100;
             let el = document.getElementById('oF');
             if (el && document.activeElement !== el) el.value = feedOvCurrent;
+            if (dispatchRef) dispatchRef(setComAttrs({ feedOverride: feedOvCurrent }));
         });
 
         // spindle override report (from server)
@@ -417,6 +425,7 @@ class Com extends React.Component {
             spindleOvCurrent = parseInt(data) || 100;
             let el = document.getElementById('oS');
             if (el && document.activeElement !== el) el.value = spindleOvCurrent;
+            if (dispatchRef) dispatchRef(setComAttrs({ spindleOverride: spindleOvCurrent }));
         });
 
         // real feed report (from server)

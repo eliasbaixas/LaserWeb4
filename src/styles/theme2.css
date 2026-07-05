@@ -25,6 +25,12 @@
     --fp-amber-line: oklch(0.82 0.1 78);
     --fp-violet: oklch(0.55 0.2 320);
     --fp-violet-soft: oklch(0.96 0.04 320);
+    --fp-danger: oklch(0.55 0.19 27);
+    --fp-danger-deep: oklch(0.47 0.19 27);
+    --fp-danger-soft: oklch(0.965 0.035 27);
+    --fp-danger-line: oklch(0.85 0.09 27);
+    --fp-info-soft: oklch(0.96 0.028 245);
+    --fp-info-line: oklch(0.8 0.05 245);
     --fp-panel: oklch(0.972 0.009 84);
     --fp-panel2: oklch(0.955 0.011 84);
     --fp-stage: oklch(0.29 0.012 265);
