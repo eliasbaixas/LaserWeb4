@@ -134,6 +134,10 @@ const middleware = composeEnhancers(
 
 const store = createStore(reducer, middleware);
 
+// Expose the store for headless smoke tests (drive the UI through redux
+// instead of fighting WebGL/canvas interaction in CI).
+if (typeof window !== 'undefined') window.__store = store;
+
 require('./lib/history-sync').initHistorySync(store);
 
 // Bad bad bad

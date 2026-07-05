@@ -437,6 +437,9 @@ class Settings extends React.Component {
                         <ToggleField {...{ object: this.props.settings, field: 'showMachine', setAttrs: setSettingsAttrs, description: 'Show Machine', info: Info(<p className="help-block">
                                     Highlight the machine work area in the display.
                                     </p>,"Show Work Area") }} />
+                        <ToggleField {...{ object: this.props.settings, field: 'useLegacyImageEditor', setAttrs: setSettingsAttrs, description: 'Legacy Image Editor', info: Info(<p className="help-block">
+                                    Open the old Filters/Trace modal instead of the redesigned image editor. Temporary escape hatch; it will be removed once the new editor reaches parity.
+                                    </p>,"Use the legacy image editor") }} />
 
                         <h5 className="header">Colors  {Info(<p className="help-block">Select the colors used for the workspace background and machine bed, when shown.</p>,"Workspace display colors")}
                         <span style={{float: "right"}}>

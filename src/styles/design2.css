@@ -1,0 +1,162 @@
+/* design2 — shared classes of the Claude Design language, used by the new
+ * surfaces (image editor 2, control 2.0, …). Legacy screens keep theme2's
+ * Bootstrap skin; these classes are opt-in and prefixed `d2-`. All colors
+ * come from theme2's --fp-* tokens. */
+
+/* --- control rows: one setting per card ------------------------------- */
+.d2-row {
+    background: var(--fp-surface);
+    border: 1px solid var(--fp-border);
+    border-radius: var(--fp-radius);
+    padding: 12px;
+    margin-bottom: 9px;
+}
+.d2-row-title { font-size: 12.5px; font-weight: 600; }
+.d2-row-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 3px; }
+.d2-row-head .d2-spacer { flex: 1; }
+.d2-microcopy { font-size: 10.5px; color: var(--fp-text-muted); line-height: 1.4; }
+.d2-row .d2-microcopy { margin-bottom: 7px; }
+.d2-units { font-size: 9px; color: var(--fp-text-muted); }
+
+/* --- section header + intro ------------------------------------------- */
+.d2-section-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--fp-text-soft);
+    letter-spacing: 0.04em;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+}
+.d2-section-intro { font-size: 11.5px; color: var(--fp-text-muted); line-height: 1.45; margin: 0 0 16px; }
+.d2-section-intro strong { color: var(--fp-text-soft); }
+
+/* --- toggle switch ------------------------------------------------------ */
+.d2-toggle {
+    width: 36px; height: 21px;
+    border-radius: 11px;
+    background: oklch(0.86 0.01 80);
+    position: relative;
+    display: inline-block;
+    flex: 0 0 auto;
+    cursor: pointer;
+    transition: background .15s ease;
+}
+.d2-toggle .d2-knob {
+    position: absolute; top: 2px; left: 2px;
+    width: 17px; height: 17px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, .3);
+    transition: left .15s ease;
+}
+.d2-toggle.on { background: var(--fp-go); }
+.d2-toggle.on.violet { background: var(--fp-violet); }
+.d2-toggle.on .d2-knob { left: 17px; }
+
+/* --- slider + numeric twin ---------------------------------------------- */
+.d2-slider { width: 100%; accent-color: var(--fp-go); height: 4px; cursor: pointer; margin: 0; }
+.d2-num {
+    width: 56px;
+    background: var(--fp-panel2);
+    border: 1px solid var(--fp-border-input);
+    border-radius: 7px;
+    padding: 4px 7px;
+    font-family: var(--fp-mono);
+    font-size: 12px;
+    text-align: right;
+    color: var(--fp-text);
+    outline: none;
+}
+.d2-num:focus { border-color: var(--fp-accent); box-shadow: 0 0 0 2px var(--fp-accent-ring); }
+
+/* --- select -------------------------------------------------------------- */
+.d2-select-wrap { position: relative; }
+.d2-select-wrap::after {
+    content: '▾';
+    position: absolute; right: 11px; top: 50%;
+    transform: translateY(-50%);
+    color: var(--fp-text-muted);
+    pointer-events: none;
+    font-size: 10px;
+}
+.d2-select {
+    width: 100%;
+    appearance: none;
+    -webkit-appearance: none;
+    background: var(--fp-panel2);
+    border: 1px solid var(--fp-border-input);
+    border-radius: var(--fp-radius-sm);
+    padding: 8px 28px 8px 11px;
+    font-size: 12.5px;
+    color: var(--fp-text);
+    cursor: pointer;
+    font-weight: 500;
+}
+
+/* --- buttons --------------------------------------------------------------- */
+.d2-btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    font-size: 13px; font-weight: 600;
+    color: var(--fp-text-soft);
+    background: var(--fp-surface);
+    border: 1px solid var(--fp-border-input);
+    border-radius: 10px;
+    padding: 10px 18px;
+    cursor: pointer;
+    transition: background .12s ease, border-color .12s ease;
+}
+.d2-btn:hover { background: var(--fp-panel); }
+.d2-btn-go {
+    color: #fff;
+    background: var(--fp-go);
+    border-color: transparent;
+    font-weight: 700;
+    box-shadow: 0 2px 10px oklch(0.56 0.13 152 / 0.35);
+}
+.d2-btn-go:hover { background: var(--fp-go-deep); }
+.d2-btn-violet {
+    color: #fff;
+    background: var(--fp-violet);
+    border-color: transparent;
+    font-weight: 700;
+    box-shadow: 0 2px 10px oklch(0.55 0.2 320 / 0.35);
+}
+.d2-btn-violet:hover { filter: brightness(0.94); }
+.d2-btn-danger { color: #fff; background: oklch(0.55 0.19 27); border-color: transparent; font-weight: 700; }
+.d2-btn[disabled] { opacity: 0.5; cursor: not-allowed; }
+
+/* --- chips / pill switches -------------------------------------------------- */
+.d2-chipbar {
+    display: inline-flex; gap: 3px;
+    background: var(--fp-panel2);
+    border: 1px solid var(--fp-border-input);
+    border-radius: var(--fp-radius);
+    padding: 3px;
+}
+.d2-chip {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 7px 13px;
+    border: none;
+    border-radius: 9px;
+    font-size: 12.5px; font-weight: 600;
+    cursor: pointer;
+    background: transparent;
+    color: var(--fp-text-muted);
+}
+.d2-chip.on {
+    background: var(--fp-surface);
+    color: var(--fp-text);
+    box-shadow: 0 1px 3px oklch(0 0 0 / 0.1);
+}
+
+/* dark variant, for toolbars floating over the preview stage */
+.d2-chipbar-dark {
+    display: inline-flex; align-items: center; gap: 2px;
+    background: oklch(0.2 0.01 60 / 0.7);
+    border: 1px solid oklch(0.5 0.01 60 / 0.5);
+    border-radius: var(--fp-radius);
+    padding: 3px;
+    backdrop-filter: blur(4px);
+}
+.d2-chipbar-dark .d2-chip { padding: 5px 11px; border-radius: 7px; font-size: 11px; color: oklch(0.8 0.01 60); }
+.d2-chipbar-dark .d2-chip.on { background: oklch(1 0 0 / 0.16); color: #fff; box-shadow: none; }

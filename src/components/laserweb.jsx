@@ -16,6 +16,7 @@ import '@fontsource/space-grotesk/600.css'
 import '@fontsource/space-grotesk/700.css'
 import '@fontsource/jetbrains-mono/400.css'
 import '../styles/theme2.css'
+import '../styles/design2.css'
 import 'font-awesome/css/font-awesome.min.css'
 import 'react-select/dist/react-select.css';
 import '../styles/index.css'

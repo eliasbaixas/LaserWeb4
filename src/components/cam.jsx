@@ -43,7 +43,7 @@ import { prompt, confirm } from './laserweb'
 import CommandHistory from './command-history'
 import { FileField, Info, ColorPicker, SearchButton } from './forms'
 
-import { promisedImage, imageTagPromise } from './image-filters';
+import { promisedImage, imageTagPromise } from '../lib/image-utils';
 
 import convert from 'color-convert'
 import useBounds from '../hooks/use-bounds';

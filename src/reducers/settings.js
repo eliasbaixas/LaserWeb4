@@ -134,6 +134,7 @@ export const SETTINGS_INITIALSTATE = {
     toolDisplayCache: false,
     toolUseGamepad: false,
     toolCreateEmptyOps: false,
+    useLegacyImageEditor: false,
 
     toolVideoDevice: null,
     toolVideoPerspective: { enabled: false },

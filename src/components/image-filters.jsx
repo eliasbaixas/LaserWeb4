@@ -17,49 +17,10 @@ import Parser from '../lib/lw.svg-parser/parser';
 
 import { sendAsFile } from '../lib/helpers'
 import { confirm } from './laserweb'
+import { promisedImage, imageTagPromise } from '../lib/image-utils'
+import ImageEditor2 from './image-editor2'
 
-export const promisedImage = (path) => {
-    return new Promise(resolve => {
-        let img = new Image();
-        img.onload = () => {
-            resolve(img)
-        }
-        img.src = path;
-    })
-}
-
-export const imageTagPromise = (tags) => {
-    return new Promise(resolve => {
-        let images = [];
-        const walker = (tag) => {
-            if (tag.name === 'image') {
-                images.push(tag);
-            }
-
-            if (tag.children) {
-                tag.children.forEach(t => walker(t))
-            }
-        }
-
-        const consumer = () => {
-            if (images.length) {
-                let tag = images.shift()
-                let dataURL = tag.element.getAttribute('xlink:href')
-                if (dataURL.substring(0, 5) !== 'data:') {
-                    return consumer();
-                }
-                let image = new Image();
-                image.onload = () => { tag.naturalWidth = image.naturalWidth; tag.naturalHeight = image.naturalHeight; consumer() }
-                image.src = dataURL;
-            } else {
-                resolve(tags);
-            }
-        }
-
-        walker(tags);
-        consumer();
-    })
-}
+export { promisedImage, imageTagPromise }
 
 export class ImagePort extends React.Component {
 
@@ -222,13 +183,18 @@ export class ImageEditorButton extends React.Component {
         }
         let className = this.props.className;
         if (this.state.shiftKey) className += ' btn-warning'
+        let Editor = this.props.useLegacyImageEditor ? ImageEditor : ImageEditor2;
         return (
             <Button bsStyle={this.props.bsStyle||'primary'} bsSize={this.props.bsSize || 'small'} className={className} onClick={(e) => this.handleClick(e)}>{this.props.children}
-                <ImageEditor show={this.state.showModal} onHide={closeModal} />
+                <Editor show={this.state.showModal} onHide={closeModal} />
             </Button>
         )
     }
 }
+
+ImageEditorButton = connect(state => ({
+    useLegacyImageEditor: state.settings.useLegacyImageEditor
+}))(ImageEditorButton)
 
 
 function checkRange(min, max) {

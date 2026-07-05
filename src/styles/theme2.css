@@ -17,10 +17,18 @@
     --fp-accent-ring: oklch(0.54 0.08 245 / .25);
     --fp-go: oklch(0.56 0.13 152);
     --fp-go-soft: oklch(0.955 0.04 152);
+    --fp-go-deep: oklch(0.5 0.13 152);
+    --fp-go-line: oklch(0.82 0.075 152);
     --fp-amber: oklch(0.74 0.14 70);
     --fp-amber-soft: oklch(0.965 0.05 82);
+    --fp-amber-deep: oklch(0.52 0.11 70);
+    --fp-amber-line: oklch(0.82 0.1 78);
     --fp-violet: oklch(0.55 0.2 320);
+    --fp-violet-soft: oklch(0.96 0.04 320);
+    --fp-panel: oklch(0.972 0.009 84);
+    --fp-panel2: oklch(0.955 0.011 84);
     --fp-stage: oklch(0.29 0.012 265);
+    --fp-stage2: oklch(0.24 0.012 265);
     --fp-radius: 11px;
     --fp-radius-sm: 8px;
     --fp-shadow: 0 1px 3px oklch(0 0 0 / 0.07);
