@@ -30,6 +30,7 @@ import Splitter from './splitter';
 import { getGcode } from '../lib/cam-gcode';
 import { sendAsFile, appendExt, openDataWindow, captureConsole, humanFileSize } from '../lib/helpers';
 import { strftime } from '../lib/strftime'
+import { shapeSvg } from '../lib/shapes'
 import { ValidateSettings } from '../reducers/settings';
 import { ApplicationSnapshotToolbar } from './settings';
 
@@ -47,6 +48,34 @@ import convert from 'color-convert'
 import useBounds from '../hooks/use-bounds';
 
 export const DOCUMENT_FILETYPES = '.png,.jpg,.jpeg,.bmp,.gcode,.g,.svg,.dxf,.tap,.gc,.nc'
+
+// Quick primitives: inject a basic shape as a real SVG document, through the
+// exact same path as Add Document, so it is movable/resizable on the canvas
+// and flows through the normal operation -> G-code pipeline.
+function AddShapeButtons() {
+    let dispatch = useDispatch();
+    let [size, setSize] = useState(20);
+
+    let add = async (shape) => {
+        let file = new File([shapeSvg(shape, size)], `${shape}-${size}mm.svg`, { type: 'image/svg+xml' });
+        let result = await loadSVG(file);
+        if (!result) return;
+        dispatch(loadDocument(file, result, {}));
+        CommandHistory.write(`Added ${shape} (${size}mm) to the workspace`, CommandHistory.INFO);
+    };
+
+    return (
+        <span style={{ display: 'inline-flex', alignItems: 'center', marginRight: 6 }}>
+            <span className="btn-group">
+                <button className="btn btn-xs btn-default" title="Add a square to the workspace" onClick={() => add('square')}><i className="fa fa-fw fa-square-o" /></button>
+                <button className="btn btn-xs btn-default" title="Add a triangle to the workspace" onClick={() => add('triangle')}><i className="fa fa-fw fa-caret-up" /></button>
+                <button className="btn btn-xs btn-default" title="Add a circle to the workspace" onClick={() => add('circle')}><i className="fa fa-fw fa-circle-o" /></button>
+            </span>
+            &nbsp;<input type="number" min="1" max="400" value={size} title="Shape size (mm)"
+                onChange={e => setSize(e.target.value)} style={{ width: 42 }} />&nbsp;<small>mm</small>
+        </span>
+    );
+}
 
 function NoDocumentsError({ settings, documents, operations, camBounds }) {
     let [ anchorRef, bounds ] = useBounds();
@@ -224,7 +253,7 @@ export function Cam() {
                                     <label>Documents {Info(<small>Tip:  Hold <kbd>Ctrl</kbd> to click multiple documents</small>)}</label>
                                 </td>
                                 <td style={{display:"flex", justifyContent: "flex-end" }}>
-
+                                    <AddShapeButtons />
                                     <FileField style={{   position: 'relative', cursor: 'pointer' }} onChange={handleLoadDocument} accept={DOCUMENT_FILETYPES}>
                                         <button title="Add a DXF/SVG/PNG/BMP/JPG document to the document tree" className="btn btn-xs btn-primary"><i className="fa fa-fw fa-folder-open" />Add Document</button>
                                         {(panes.visible) ? <NoDocumentsError camBounds={bounds} settings={settings} documents={documents} operations={operations} /> : undefined}

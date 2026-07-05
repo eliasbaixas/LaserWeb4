@@ -29,7 +29,6 @@ import Cam from './cam'
 import Quote from './quote'
 import Settings from './settings'
 import About from './about'
-import TestPane from './test-pane'
 import ConnectionStatus from './connection-status'
 
 import { AllowCapture } from './capture'
@@ -183,7 +182,6 @@ class LaserWeb extends React.Component {
                             <Cam id="cam" title="Files" icon="pencil-square-o" />
                             <Com id="com" title="Comms" icon="plug" />
                             <Jog id="jog" title="Control" icon="arrows-alt" />
-                            <TestPane id="test" title="Test" icon="flask" />
                             <Settings id="settings" title="Settings" icon="cogs" />
                             <About id="about" title="About" icon="question" />
                         </Sidebar>

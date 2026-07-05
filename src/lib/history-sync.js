@@ -13,7 +13,6 @@ export const PANE_TO_PATH = {
     cam: '/files',
     com: '/comms',
     jog: '/control',
-    test: '/test',
     settings: '/settings',
     about: '/about',
 }
