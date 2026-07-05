@@ -155,6 +155,10 @@ function drawDocuments(container, documents, attachedIds, layers, boundsList, on
             const sprite = new Sprite()
             const t = doc.transform2d
             sprite.setFromMatrix(new Matrix(...t))
+            // setFromMatrix stores placement in sprite.position — remember it
+            // so dragging adds a delta instead of overwriting the placement
+            sprite.__baseX = sprite.position.x
+            sprite.__baseY = sprite.position.y
             sprite.alpha = (doc.selected ? 0.75 : 1) * layerAlpha
             Assets.load(doc.dataURL)
                 .then(tex => {
@@ -167,6 +171,8 @@ function drawDocuments(container, documents, attachedIds, layers, boundsList, on
                     let m = new Matrix(...t)
                     if (t[3] > 0) m = m.append(new Matrix(1, 0, 0, -1, 0, tex.height))
                     sprite.setFromMatrix(m)
+                    sprite.__baseX = sprite.position.x
+                    sprite.__baseY = sprite.position.y
                     const pts = [[0, 0], [tex.width, 0], [0, tex.height], [tex.width, tex.height]]
                         .map(([px, py]) => m.apply({ x: px, y: py }))
                     boundsList.push({
@@ -361,13 +367,14 @@ export function Workspace2({ style }) {
                     const selected = new Set(GlobalStore().getState().documents
                         .filter(d => d.selected).map(d => d.id))
                     for (const c of docsC.children)
-                        if (selected.has(c.__docId)) c.position.set(drag.dx, drag.dy)
+                        if (selected.has(c.__docId))
+                            c.position.set((c.__baseX || 0) + drag.dx, (c.__baseY || 0) + drag.dy)
                     selG.position.set(drag.dx, drag.dy)
                 })
                 const endDrag = () => {
                     if (!drag.active) return
                     drag.active = false
-                    for (const c of docsC.children) c.position.set(0, 0)
+                    for (const c of docsC.children) c.position.set(c.__baseX || 0, c.__baseY || 0)
                     selG.position.set(0, 0)
                     if (Math.hypot(drag.dx, drag.dy) > 0.01)
                         GlobalStore().dispatch(transform2dSelectedDocuments([1, 0, 0, 1, drag.dx, drag.dy]))
