@@ -14,10 +14,11 @@
 
 import React, { useEffect, useRef, useState } from 'react'
 import { useSelector } from 'react-redux'
-import { Application, Assets, Container, Graphics, Matrix, Sprite } from 'pixi.js'
+import { Application, Assets, Container, Graphics, Matrix, Rectangle, Sprite } from 'pixi.js'
 import { Viewport } from 'pixi-viewport'
 
 import { GlobalStore } from '../index'
+import { selectDocument, toggleSelectDocument, selectDocuments } from '../actions/document'
 
 const COLORS = {
     background: 0xeef0f4,
@@ -69,6 +70,26 @@ function drawGrid(g, w, h) {
     g.circle(0, 0, 2).fill(COLORS.origin)
 }
 
+// A tap is a press+release that barely moved — a viewport pan gesture that
+// happens to start on an object must not select it.
+function onTap(obj, handler) {
+    obj.eventMode = 'static'
+    obj.on('pointerdown', e => { obj.__tapStart = { x: e.global.x, y: e.global.y } })
+    obj.on('pointerup', e => {
+        const s = obj.__tapStart
+        obj.__tapStart = null
+        if (s && Math.hypot(e.global.x - s.x, e.global.y - s.y) < 6) handler(e)
+    })
+}
+
+function tapToSelect(obj, docId) {
+    obj.cursor = 'pointer'
+    onTap(obj, e => {
+        const multi = e.ctrlKey || e.metaKey || e.shiftKey
+        GlobalStore().dispatch(multi ? toggleSelectDocument(docId) : selectDocument(docId))
+    })
+}
+
 function drawDocuments(container, documents) {
     container.removeChildren().forEach(c => c.destroy())
     for (const doc of documents) {
@@ -92,18 +113,31 @@ function drawDocuments(container, documents) {
                         sprite.setFromMatrix(new Matrix(...t).append(new Matrix(1, 0, 0, -1, 0, tex.height)))
                 })
                 .catch(err => console.warn('[workspace2] image load failed:', err))
+            tapToSelect(sprite, doc.id)
             container.addChild(sprite)
             continue
         }
         if (!doc.rawPaths || !doc.transform2d) continue
         const g = new Graphics()
         const color = colorOf(doc)
+        let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity
         for (const raw of doc.rawPaths) {
             const p = transformPath(raw, doc.transform2d)
             if (p.length < 4) continue
             g.moveTo(p[0], p[1])
             for (let i = 2; i < p.length; i += 2) g.lineTo(p[i], p[i + 1])
             g.stroke({ width: 1, color, pixelLine: true })
+            for (let i = 0; i < p.length; i += 2) {
+                if (p[i] < x1) x1 = p[i]
+                if (p[i] > x2) x2 = p[i]
+                if (p[i + 1] < y1) y1 = p[i + 1]
+                if (p[i + 1] > y2) y2 = p[i + 1]
+            }
+        }
+        if (x1 < x2) {
+            // hairline strokes are unclickable; select by bounding box
+            g.hitArea = new Rectangle(x1, y1, x2 - x1, y2 - y1)
+            tapToSelect(g, doc.id)
         }
         container.addChild(g)
     }
@@ -212,6 +246,9 @@ export function Workspace2({ style }) {
                 const cursorG = new Graphics()
                 drawCursor(cursorG)
                 world.addChild(gridG, docsC, gcodeG, cursorG)
+
+                // tap on empty bed = deselect (documents sit above and win)
+                onTap(gridG, () => GlobalStore().dispatch(selectDocuments(false)))
 
                 // fit the bed with a margin
                 const s = Math.min(
