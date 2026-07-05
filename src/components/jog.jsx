@@ -86,7 +86,7 @@ function AxisControl({ jogRef, axis, canMax, color }) {
                 <DropdownAction id={`goto${axis}Zero`} icon="play" onClick={() => jogRef.gotoZero(axisLower)}>G0 to {axis}0</DropdownAction>
             </ul>
         </div>
-        <div id={`m${axis}`} className="droPos" title={`Current ${axis} work coordinate (mm), from the machine's status report — relative to the work zero you set`} style={{ marginRight: 0, backgroundColor: color }}>0.00</div><div className="droUnit" style={{ backgroundColor: color }}> mm</div>
+        <div id={`m${axis}`} className="droPos" title={`Current ${axis} work coordinate (mm) — read-only display. To move the origin: jog where you want ${axis}=0 and use the arrow menu ⇒ 'Set ${axis} Axis Zero' (machine coordinates from homing are untouched).`} style={{ marginRight: 0, backgroundColor: color }}>0.00</div><div className="droUnit" style={{ backgroundColor: color }}> mm</div>
         <br />
     </>;
 }
@@ -579,7 +579,7 @@ class Jog extends React.Component {
                                 <div className="drolabel" title="Feed override — scales the running job's movement speed in realtime (GRBL: 10–200%) without editing the G-code. Too slow / burning? Adjust here mid-job.">F:</div>
                                 <input id="oF" type="number" className="droOR" defaultValue="100" min="10" max="200" step="1"
                                     style={{ width: 'calc(100% - 125px)', minWidth: 70 }}
-                                    title="Feed override %: type a value between 10 and 200 and press Enter"
+                                    title="Live speed scaling: 90 runs the job at 90% of its programmed Cut Rate; 150 at 1.5×. Applies instantly to the running job and stays until reset. Type 10–200, press Enter."
                                     onKeyDown={(e) => { if (e.key === 'Enter') { feedOverrideTo(e.target.value); e.target.blur(); } }}
                                     onBlur={(e) => feedOverrideTo(e.target.value)} />
                                 <span className="drounitlabel"> % </span>
@@ -594,7 +594,7 @@ class Jog extends React.Component {
                                 <div className="drolabel" title="S (spindle/laser power) override — scales the programmed S value in realtime (GRBL: 10–200%). Lower it mid-job if the laser burns too deep.">S:</div>
                                 <input id="oS" type="number" className="droOR" defaultValue="100" min="10" max="200" step="1"
                                     style={{ width: 'calc(100% - 125px)', minWidth: 70 }}
-                                    title="Power override %: type a value between 10 and 200 and press Enter"
+                                    title="Live power scaling: 90 fires the laser at 90% of the operation's programmed power (S). Not speed! Applies instantly and stays until reset. Type 10–200, press Enter."
                                     onKeyDown={(e) => { if (e.key === 'Enter') { spindleOverrideTo(e.target.value); e.target.blur(); } }}
                                     onBlur={(e) => spindleOverrideTo(e.target.value)} />
                                 <span className="drounitlabel"> % </span>
