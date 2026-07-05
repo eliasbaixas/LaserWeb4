@@ -18,7 +18,7 @@ import { Application, Assets, Container, Graphics, Matrix, Rectangle, Sprite } f
 import { Viewport } from 'pixi-viewport'
 
 import { GlobalStore } from '../index'
-import { selectDocument, toggleSelectDocument, selectDocuments, removeDocumentSelected } from '../actions/document'
+import { selectDocument, toggleSelectDocument, selectDocuments, removeDocumentSelected, transform2dSelectedDocuments } from '../actions/document'
 
 const COLORS = {
     background: 0xeef0f4,
@@ -114,12 +114,13 @@ function onTap(obj, handler) {
     })
 }
 
-function tapToSelect(obj, docId) {
-    obj.cursor = 'pointer'
-    onTap(obj, e => {
-        const multi = e.ctrlKey || e.metaKey || e.shiftKey
-        GlobalStore().dispatch(multi ? toggleSelectDocument(docId) : selectDocument(docId))
-    })
+// Documents select on pointer-down and then drag to move (the empty bed
+// still pans the viewport; stopPropagation keeps the pan plugin out).
+function makeDocInteractive(obj, docId, onDocDown) {
+    obj.eventMode = 'static'
+    obj.cursor = 'move'
+    obj.__docId = docId
+    obj.on('pointerdown', e => onDocDown(e, docId))
 }
 
 // Documents referenced by any operation (including their whole subtree):
@@ -138,7 +139,7 @@ export function computeAttachedIds(documents, operations) {
     return attached
 }
 
-function drawDocuments(container, documents, attachedIds, layers, boundsList, onBoundsChange) {
+function drawDocuments(container, documents, attachedIds, layers, boundsList, onBoundsChange, onDocDown) {
     container.removeChildren().forEach(c => c.destroy())
     boundsList.length = 0
     for (const doc of documents) {
@@ -176,7 +177,7 @@ function drawDocuments(container, documents, attachedIds, layers, boundsList, on
                     if (onBoundsChange) onBoundsChange()
                 })
                 .catch(err => console.warn('[workspace2] image load failed:', err))
-            tapToSelect(sprite, doc.id)
+            makeDocInteractive(sprite, doc.id, onDocDown)
             container.addChild(sprite)
             continue
         }
@@ -200,7 +201,7 @@ function drawDocuments(container, documents, attachedIds, layers, boundsList, on
         if (x1 < x2) {
             // hairline strokes are unclickable; select by bounding box
             g.hitArea = new Rectangle(x1, y1, x2 - x1, y2 - y1)
-            tapToSelect(g, doc.id)
+            makeDocInteractive(g, doc.id, onDocDown)
             boundsList.push({ selected: doc.selected, x1, y1, x2, y2 })
         }
         container.addChild(g)
@@ -334,6 +335,46 @@ export function Workspace2({ style }) {
                 // tap on empty bed = deselect (documents sit above and win)
                 onTap(gridG, () => GlobalStore().dispatch(selectDocuments(false)))
 
+                // --- drag to move: live offset on the pixi objects, one
+                // transform2dSelectedDocuments dispatch on release ------------
+                const drag = { active: false, sx: 0, sy: 0, dx: 0, dy: 0 }
+                const onDocDown = (e, docId) => {
+                    e.stopPropagation() // keep the viewport pan plugin out
+                    const st = GlobalStore().getState()
+                    const doc = st.documents.find(d => d.id === docId)
+                    if (e.ctrlKey || e.metaKey || e.shiftKey) {
+                        GlobalStore().dispatch(toggleSelectDocument(docId))
+                        return
+                    }
+                    if (!doc || !doc.selected) GlobalStore().dispatch(selectDocument(docId))
+                    const pnt = world.toLocal(e.global)
+                    drag.active = true
+                    drag.sx = pnt.x; drag.sy = pnt.y; drag.dx = 0; drag.dy = 0
+                }
+                app.stage.eventMode = 'static'
+                app.stage.hitArea = app.screen
+                app.stage.on('globalpointermove', (e) => {
+                    if (!drag.active) return
+                    const pnt = world.toLocal(e.global)
+                    drag.dx = pnt.x - drag.sx
+                    drag.dy = pnt.y - drag.sy
+                    const selected = new Set(GlobalStore().getState().documents
+                        .filter(d => d.selected).map(d => d.id))
+                    for (const c of docsC.children)
+                        if (selected.has(c.__docId)) c.position.set(drag.dx, drag.dy)
+                    selG.position.set(drag.dx, drag.dy)
+                })
+                const endDrag = () => {
+                    if (!drag.active) return
+                    drag.active = false
+                    for (const c of docsC.children) c.position.set(0, 0)
+                    selG.position.set(0, 0)
+                    if (Math.hypot(drag.dx, drag.dy) > 0.01)
+                        GlobalStore().dispatch(transform2dSelectedDocuments([1, 0, 0, 1, drag.dx, drag.dy]))
+                }
+                app.stage.on('pointerup', endDrag)
+                app.stage.on('pointerupoutside', endDrag)
+
                 // fit the bed with a margin
                 const s = Math.min(
                     holder.clientWidth / (machineWidth * 1.1),
@@ -352,7 +393,7 @@ export function Workspace2({ style }) {
 
                 app.renderer.on('resize', (w, h) => viewport.resize(w, h))
 
-                pixiRef.current = { app, viewport, world, gridG, docsC, gcodeG, selG, cursorG }
+                pixiRef.current = { app, viewport, world, gridG, docsC, gcodeG, selG, cursorG, onDocDown }
                 setReady(r => r + 1)
             })
             .catch(err => console.error('[workspace2] init failed:', err))
@@ -381,7 +422,7 @@ export function Workspace2({ style }) {
         if (!p) return
         const refreshSelection = () => drawSelection(p.selG, boundsRef.current, p.viewport.scale.x)
         drawDocuments(p.docsC, documents, computeAttachedIds(documents, operations), layers,
-            boundsRef.current, refreshSelection)
+            boundsRef.current, refreshSelection, p.onDocDown)
         refreshSelection()
     }, [ready, documents, operations, layers])
 

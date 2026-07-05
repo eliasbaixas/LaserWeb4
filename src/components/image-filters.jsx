@@ -104,6 +104,7 @@ export class ImagePort extends React.Component {
                 this.filters = filters;
                 if (documents.length) {
                     promisedImage(documents[0].dataURL).then((image) => {
+                        if (!this.canvas) return; // preview unmounted while the image loaded
                         this.canvas.width = image.width;
                         this.canvas.height = image.height;
                         this.canvas.getContext("2d").drawImage(image, 0, 0)
@@ -394,6 +395,7 @@ class ImageEditor extends React.Component
             if (documents.length) {
                 this.currentDocument = documents[0];
                 promisedImage(this.currentDocument.dataURL).then(function(image){
+                    if (!this.canvas) return; // modal closed while the image loaded
                     this.canvas.width = image.naturalWidth;
                     this.canvas.height = image.naturalHeight;
                     this.canvas.getContext("2d").drawImage(image, 0, 0)
