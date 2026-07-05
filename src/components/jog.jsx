@@ -569,6 +569,17 @@ class Jog extends React.Component {
             <div style={{ paddingTop: 6 }} >
                         <span className="badge badge-default badge-notify" title="Machine Status" id="machineStatus" style={{ marginRight: 5 }}>Not Connected</span>
                         <span className="badge badge-default badge-notify" title="Job details, based on gcode lines completed and queued" id="queueCnt" style={{ marginRight: 5 }}>Queued: 0</span>
+                        <span className={'badge badge-default ' + (this.props.gcode ? (this.props.gcodeDirty ? 'badge-warn' : 'badge-ok') : 'badge-notify')}
+                            title={this.props.gcode
+                                ? (this.props.gcodeDirty
+                                    ? 'G-code loaded, but documents/operations changed after it was generated — regenerate in Files to pick up the changes'
+                                    : 'G-code loaded and up to date: Run Job will send it. It survives page reloads.')
+                                : 'No G-code loaded — generate it in the Files pane (Run Job would say "Job empty")'}
+                            style={{ marginRight: 5 }}>
+                            {this.props.gcode
+                                ? `G-code: ${this.props.gcode.split(/\r\n|\r|\n/).length} lines${this.props.gcodeDirty ? ' (stale)' : ''}`
+                                : 'no G-code'}
+                        </span>
                         <div id="mPosition" className="well well-sm" style={{ marginBottom: 7}}>
                             <AxisControl jogRef={this} axis="X" canMax={true} color="#ffdbdb" />
                             <AxisControl jogRef={this} axis="Y" canMax={true} color="#dbffdf" />
@@ -857,7 +868,7 @@ class Jog extends React.Component {
 }
 
 Jog = connect(
-    state => ({ settings: state.settings, jogStepsize: state.jogStepsize, gcode: state.gcode.content })
+    state => ({ settings: state.settings, jogStepsize: state.jogStepsize, gcode: state.gcode.content, gcodeDirty: state.gcode.dirty })
 )(Jog);
 
 // Exports

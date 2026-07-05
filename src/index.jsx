@@ -48,13 +48,17 @@ const reducer = compose(
     mergePersistedState((initialState, persistedState) => {
         let state = { ...initialState, ...persistedState };
         state.camera = require('./reducers/camera').resetCamera(null, state.settings);
+        // Never restore an in-flight generation flag: it would leave the
+        // Generate button disabled and a progress bar spinning forever.
+        if (state.gcode)
+            state.gcode = { ...state.gcode, gcoding: { enable: false, percent: 0 } };
         return hot(state, { type: 'LOADED' });
     })
 )(hot);
 
 const storage = compose(
   filter(['settings','machineProfiles','splitters','materialDatabase',
-          'documents','operations','currentOperation'])
+          'documents','operations','currentOperation','gcode'])
 )(adapter(window.localStorage));
 
 /* Documents carry parsed geometry (and bitmaps as dataURLs), so persisted
