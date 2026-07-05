@@ -11,6 +11,10 @@ import 'bootstrap/dist/css/bootstrap.min.css'
 // Bootstrap 5 utility classes only (d-flex, gap-*, p-*/m-*, text-*, ...):
 // coexists with BS3 components so new/updated markup can use modern utils.
 import 'bootstrap5/dist/css/bootstrap-utilities.min.css'
+import '@fontsource/space-grotesk/400.css'
+import '@fontsource/space-grotesk/600.css'
+import '@fontsource/space-grotesk/700.css'
+import '@fontsource/jetbrains-mono/400.css'
 import '../styles/theme2.css'
 import 'font-awesome/css/font-awesome.min.css'
 import 'react-select/dist/react-select.css';

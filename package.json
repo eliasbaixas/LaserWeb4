@@ -110,6 +110,8 @@
     "xregexp": "^5.1.0"
   },
   "dependencies": {
+    "@fontsource/jetbrains-mono": "^5.2.8",
+    "@fontsource/space-grotesk": "^5.2.10",
     "bootstrap-range-input": "^1.0.0",
     "bootstrap5": "npm:bootstrap@^5.3.8",
     "classnames": "^2.5.1",

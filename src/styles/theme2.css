@@ -1,20 +1,29 @@
 /* Design tokens — swap this block for Claude Design's palette and the
  * whole legacy UI follows. Components should reference vars, not hexes. */
 :root {
-    --fp-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    --fp-text: #23272e;
-    --fp-text-soft: #3a4150;
-    --fp-text-muted: #6b7484;
-    --fp-bg: #f2f3f6;
+    /* Palette from the Claude Design proposal (claude-designs/…): warm
+     * paper/ink neutrals + go (green), amber, info (blue), violet accents. */
+    --fp-font: 'Space Grotesk', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --fp-mono: 'JetBrains Mono', ui-monospace, monospace;
+    --fp-text: oklch(0.27 0.02 60);
+    --fp-text-soft: oklch(0.5 0.016 62);
+    --fp-text-muted: oklch(0.64 0.012 64);
+    --fp-bg: oklch(0.985 0.008 82);
     --fp-surface: #ffffff;
-    --fp-surface-soft: #fafbfc;
-    --fp-border: #dde1e8;
-    --fp-border-input: #cfd4dd;
-    --fp-accent: #3d8fe0;
-    --fp-accent-ring: rgba(61, 143, 224, .25);
-    --fp-radius: 8px;
-    --fp-radius-sm: 6px;
-    --fp-shadow: 0 1px 2px rgba(20, 24, 32, .06);
+    --fp-surface-soft: oklch(0.972 0.009 84);
+    --fp-border: oklch(0.9 0.008 80);
+    --fp-border-input: oklch(0.85 0.012 80);
+    --fp-accent: oklch(0.54 0.08 245);
+    --fp-accent-ring: oklch(0.54 0.08 245 / .25);
+    --fp-go: oklch(0.56 0.13 152);
+    --fp-go-soft: oklch(0.955 0.04 152);
+    --fp-amber: oklch(0.74 0.14 70);
+    --fp-amber-soft: oklch(0.965 0.05 82);
+    --fp-violet: oklch(0.55 0.2 320);
+    --fp-stage: oklch(0.29 0.012 265);
+    --fp-radius: 11px;
+    --fp-radius-sm: 8px;
+    --fp-shadow: 0 1px 3px oklch(0 0 0 / 0.07);
 }
 
 /* theme2 — a modern skin over Bootstrap 3: breathing room, bigger targets,
