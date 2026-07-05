@@ -18,7 +18,7 @@ import Parser from '../lib/lw.svg-parser/parser';
 import { useCallback, useContext, useRef, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux';
 
-import { loadDocument, setDocumentAttrs, cloneDocumentSelected, selectDocuments, colorDocumentSelected, removeDocumentSelected, selectDocumentsByColor } from '../actions/document';
+import { loadDocument, setDocumentAttrs, cloneDocumentSelected, selectDocuments, colorDocumentSelected, removeDocument, removeDocumentSelected, selectDocumentsByColor } from '../actions/document';
 
 import { setGcode, generatingGcode } from '../actions/gcode';
 import { resetWorkspace } from '../actions/laserweb';
@@ -126,6 +126,7 @@ export function Cam() {
     let [ boundsRef, bounds ] = useBounds();
     let generationRef = useRef();
     let [ filter, setFilter ] = useState();
+    let [ libExpanded, setLibExpanded ] = useState(null);
 
     let saveGcode = useCallback((e) => {
         prompt('Save as', strftime(settings.gcodeFilename), (file) => {
@@ -222,6 +223,37 @@ export function Cam() {
     let valid = validator.passes();
     let someSelected=documents.some((i)=>(i.selected));
 
+    // --- library: loaded files kept off the bed (whole subtree hidden) ----
+    let subtreeIds = (rootId) => {
+        let byId = new Map(documents.map(d => [d.id, d]));
+        let out = [];
+        let walk = (id) => {
+            out.push(id);
+            let d = byId.get(id);
+            if (d && d.children) d.children.forEach(walk);
+        };
+        walk(rootId);
+        return out;
+    };
+    let rootOf = (id) => {
+        let parent = documents.find(d => d.children && d.children.includes(id));
+        return parent ? rootOf(parent.id) : id;
+    };
+    let setSubtreeVisible = (rootId, visible) =>
+        subtreeIds(rootId).forEach(id => dispatch(setDocumentAttrs({ visible }, id)));
+    let sendSelectedToLibrary = () => {
+        new Set(documents.filter(d => d.selected).map(d => rootOf(d.id)))
+            .forEach(rootId => setSubtreeVisible(rootId, false));
+        dispatch(selectDocuments(false));
+    };
+    // a root is "in the library" only while its whole subtree is hidden;
+    // adding one child back to the bed brings the file into the tree again
+    let byId = new Map(documents.map(d => [d.id, d]));
+    let isFullyHidden = (rootId) => subtreeIds(rootId).every(id => byId.get(id)?.visible === false);
+    let libraryRoots = documents.filter(d => d.isRoot && d.visible === false && isFullyHidden(d.id));
+    let libraryIds = new Set(libraryRoots.map(d => d.id));
+    let bedDocuments = documents.filter(d => !libraryIds.has(d.id));
+
     return (
         <div style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
             <div className="panel panel-danger" style={{ marginBottom: 0 }}>
@@ -267,7 +299,44 @@ export function Cam() {
             </div>
             <Splitter style={{ flexShrink: 0 }} split="horizontal" initialSize={100} resizerStyle={{ marginTop: 2, marginBottom: 2 }} splitterId="cam-documents">
                 <div style={{height:"100%", display:"flex", flexDirection:"column"}} >
-                    <div style={{ overflowY: 'auto', flexGrow:1 }}><Documents documents={documents} filter={filter} toggleExpanded={toggleDocumentExpanded} /></div>
+                    <div style={{ overflowY: 'auto', flexGrow:1 }}>
+                        <Documents documents={bedDocuments} filter={filter} toggleExpanded={toggleDocumentExpanded} />
+                        {libraryRoots.length ? (
+                            <div style={{ borderTop: '1px solid #ccc', marginTop: 6, paddingTop: 4 }}>
+                                <label title="Loaded files kept off the bed: not drawn, not cut. Add them back when needed.">
+                                    <Icon name="archive" /> Library <small>({libraryRoots.length})</small>
+                                </label>
+                                {libraryRoots.map(d => (
+                                    <div key={d.id}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '1px 2px' }}>
+                                            {(d.children && d.children.length) ?
+                                                <button className="btn btn-xs btn-link" style={{ padding: 0 }}
+                                                    title="Pick parts of this file"
+                                                    onClick={() => setLibExpanded(libExpanded === d.id ? null : d.id)}>
+                                                    <Icon name={libExpanded === d.id ? 'caret-down' : 'caret-right'} />
+                                                </button> : <span style={{ width: 10 }} />}
+                                            <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#777' }}>{d.name}</span>
+                                            <button className="btn btn-xs btn-success" title="Add the whole file to the bed"
+                                                onClick={() => setSubtreeVisible(d.id, true)}><Icon name="level-up" /></button>
+                                            <button className="btn btn-xs btn-danger" title="Delete from the library"
+                                                onClick={() => subtreeIds(d.id).forEach(id => dispatch(removeDocument(id)))}><Icon name="trash" /></button>
+                                        </div>
+                                        {libExpanded === d.id && (d.children || []).map(cid => {
+                                            let c = byId.get(cid);
+                                            if (!c) return null;
+                                            return (
+                                                <div key={cid} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '0 2px 0 22px' }}>
+                                                    <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#999', fontSize: '0.9em' }}>{c.name}</span>
+                                                    <button className="btn btn-xs btn-success" title="Add only this subtree to the bed (the file leaves the library and shows in the tree; the rest stays hidden)"
+                                                        onClick={() => { dispatch(setDocumentAttrs({ visible: true }, d.id)); setSubtreeVisible(cid, true); }}><Icon name="level-up" /></button>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                ))}
+                            </div>
+                        ) : undefined}
+                    </div>
                     {documents.length ? <ButtonToolbar bsSize="xsmall" bsStyle="default">
 
                         <ButtonGroup>
@@ -276,6 +345,7 @@ export function Cam() {
                             <Button  bsStyle="success" bsSize="xsmall" disabled={!someSelected} onClick={e=>{dispatch(selectDocumentsByColor(e.shiftKey))}} title="Select all with matching path color(s), Press [SHIFT] to select by fill color"><Icon name="eyedropper"/></Button>
                         </ButtonGroup>
                         <Button  bsStyle="warning" bsSize="xsmall" disabled={!someSelected} onClick={()=>{dispatch(cloneDocumentSelected())}} title="Clone selected"><Icon name="copy"/></Button>
+                        <Button  bsStyle="default" bsSize="xsmall" disabled={!someSelected} onClick={sendSelectedToLibrary} title="Send selected to the library (kept loaded, removed from the bed and from rendering)"><Icon name="archive"/></Button>
                         <Button  bsStyle="danger" bsSize="xsmall" disabled={!someSelected} onClick={()=>{dispatch(removeDocumentSelected())}} title="Remove selected"><Icon name="trash"/></Button>
                         <SearchButton bsStyle="primary" bsSize="xsmall" search={filter} onSearch={(filter) => setFilter(filter)} placement="bottom"><Icon name="search"/></SearchButton>
                         <ButtonGroup style={{ float: 'right' }}>
