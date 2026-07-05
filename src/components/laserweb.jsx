@@ -20,7 +20,7 @@ import { connect } from 'react-redux'
 
 // Main components
 import Sidebar from './sidebar'
-import Workspace from './workspace'
+import WorkspaceSwitcher from './workspace-switcher'
 
 // Inner components
 import Com from './com'
@@ -185,7 +185,7 @@ class LaserWeb extends React.Component {
                             <Settings id="settings" title="Settings" icon="cogs" />
                             <About id="about" title="About" icon="question" />
                         </Sidebar>
-                        <Workspace style={{ flexGrow: 1, position: "relative" }} />
+                        <WorkspaceSwitcher />
                         <ConnectionStatus />
                     </div>
                 </DocumentCacheHolder>

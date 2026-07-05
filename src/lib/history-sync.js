@@ -34,7 +34,9 @@ export function initHistorySync(store) {
     // (or an unknown path) is normalized to the current pane's URL without
     // creating a history entry.
     applyPane(paneFromLocation())
-    window.history.replaceState({ pane: selectedPane() }, '', PANE_TO_PATH[selectedPane()])
+    // keep the query string (?ws2=1 and friends) when normalizing the path
+    window.history.replaceState({ pane: selectedPane() }, '',
+        PANE_TO_PATH[selectedPane()] + window.location.search)
 
     // Back/forward: reflect the URL into the store, without pushing again.
     let navigating = false
@@ -55,7 +57,7 @@ export function initHistorySync(store) {
         lastSelected = selected
         const path = PANE_TO_PATH[selected]
         if (!navigating && path && window.location.pathname !== path) {
-            window.history.pushState({ pane: selected }, '', path)
+            window.history.pushState({ pane: selected }, '', path + window.location.search)
         }
     })
 }
