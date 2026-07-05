@@ -14,7 +14,7 @@ import { xOffset, yOffset } from './com';
 import CommandHistory from './command-history';
 
 import { Input, TextField, NumberField, ToggleField, SelectField } from './forms';
-import { runCommand, runJob, pauseJob, resumeJob, abortJob, clearAlarm, setZero, gotoZero, setPosition, home, probe, checkSize, laserTest, jog, jogTo, feedOverride, spindleOverride, resetMachine } from './com';
+import { runCommand, runJob, pauseJob, resumeJob, abortJob, clearAlarm, setZero, gotoZero, setPosition, home, probe, checkSize, laserTest, jog, jogTo, feedOverride, spindleOverride, feedOverrideTo, spindleOverrideTo, resetMachine } from './com';
 import { MacrosBar } from './macros';
 
 import '../styles/index.css'
@@ -577,41 +577,31 @@ class Jog extends React.Component {
 
                             <div id="overrides">
                                 <div className="drolabel" title="Feed override — scales the running job's movement speed in realtime (GRBL: 10–200%) without editing the G-code. Too slow / burning? Adjust here mid-job.">F:</div>
-                                <div id="oF" className="droOR" title="Current feed override level (100% = programmed speed)">100<span className="drounitlabel"> %</span></div>
+                                <input id="oF" type="number" className="droOR" defaultValue="100" min="10" max="200" step="1"
+                                    style={{ width: 62 }}
+                                    title="Feed override %: type a value between 10 and 200 and press Enter"
+                                    onKeyDown={(e) => { if (e.key === 'Enter') { feedOverrideTo(e.target.value); e.target.blur(); } }}
+                                    onBlur={(e) => feedOverrideTo(e.target.value)} />
+                                <span className="drounitlabel"> % </span>
                                 <div className="btn-group btn-override">
                                     <button id="rF" type="button" onClick={(e) => { this.resetF(e) }} className="btn btn-sm btn-default" style={{ padding: 2, top: -3 }} data-toggle="tooltip" data-placement="bottom" title="Click to Reset F-Override to 100%">
                                         <span className="fa-stack fa-1x">
                                             <i className="fa fa-retweet fa-stack-1x"></i>
                                         </span>
                                     </button>
-                                    <button id="iF" type="button" onClick={(e) => { this.increaseF(e) }} className="btn btn-sm btn-default" style={{ padding: 2, top: -3 }} data-toggle="tooltip" data-placement="bottom" title="Click to Increase by 1% or Ctrl+Click to increase by 10%">
-                                        <span className="fa-stack fa-1x">
-                                            <i className="fa fa-arrow-up fa-stack-1x"></i>
-                                        </span>
-                                    </button>
-                                    <button id="dF" type="button" onClick={(e) => { this.decreaseF(e) }} className="btn btn-sm btn-default" style={{ padding: 2, top: -3 }} data-toggle="tooltip" data-placement="bottom" title="Click to Decrease by 1% or Ctrl+Click to decrease by 10%">
-                                        <span className="fa-stack fa-1x">
-                                            <i className="fa fa-arrow-down fa-stack-1x"></i>
-                                        </span>
-                                    </button>
                                 </div>
                                 <br />
                                 <div className="drolabel" title="S (spindle/laser power) override — scales the programmed S value in realtime (GRBL: 10–200%). Lower it mid-job if the laser burns too deep.">S:</div>
-                                <div id="oS" className="droOR" title="Current power override level (100% = programmed S value)">100<span className="drounitlabel"> %</span></div>
+                                <input id="oS" type="number" className="droOR" defaultValue="100" min="10" max="200" step="1"
+                                    style={{ width: 62 }}
+                                    title="Power override %: type a value between 10 and 200 and press Enter"
+                                    onKeyDown={(e) => { if (e.key === 'Enter') { spindleOverrideTo(e.target.value); e.target.blur(); } }}
+                                    onBlur={(e) => spindleOverrideTo(e.target.value)} />
+                                <span className="drounitlabel"> % </span>
                                 <div className="btn-group btn-override">
                                     <button id="rS" type="button" onClick={(e) => { this.resetS(e) }} className="btn btn-sm btn-default" style={{ padding: 2, top: -3 }} data-toggle="tooltip" data-placement="bottom" title="Click to Reset S-Override to 100%">
                                         <span className="fa-stack fa-1x">
                                             <i className="fa fa-retweet fa-stack-1x"></i>
-                                        </span>
-                                    </button>
-                                    <button id="iS" type="button" onClick={(e) => { this.increaseS(e) }} className="btn btn-sm btn-default" style={{ padding: 2, top: -3 }} data-toggle="tooltip" data-placement="bottom" title="Click to Increase by 1% or Ctrl+Click to increase by 10%">
-                                        <span className="fa-stack fa-1x">
-                                            <i className="fa fa-arrow-up fa-stack-1x"></i>
-                                        </span>
-                                    </button>
-                                    <button id="dS" type="button" onClick={(e) => { this.decreaseS(e) }} className="btn btn-sm btn-default" style={{ padding: 2, top: -3 }} data-toggle="tooltip" data-placement="bottom" title="Click to Decrease by 1% or Ctrl+Click to decrease by 10%">
-                                        <span className="fa-stack fa-1x">
-                                            <i className="fa fa-arrow-down fa-stack-1x"></i>
                                         </span>
                                     </button>
                                 </div>

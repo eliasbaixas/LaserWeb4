@@ -406,17 +406,17 @@ class Com extends React.Component {
         // feed override report (from server)
         socket.on('feedOverride', function (data) {
             serverConnected = true; syncConnState();
-            //CommandHistory.write('feedOverride: ' + data, CommandHistory.STD);
-            //console.log('feedOverride ' + data);
-            $('#oF').html(data.toString() + '<span class="drounitlabel"> %</span>');
+            feedOvCurrent = parseInt(data) || 100;
+            let el = document.getElementById('oF');
+            if (el && document.activeElement !== el) el.value = feedOvCurrent;
         });
 
         // spindle override report (from server)
         socket.on('spindleOverride', function (data) {
             serverConnected = true; syncConnState();
-            //CommandHistory.write('spindleOverride: ' + data, CommandHistory.STD);
-            //console.log('spindleOverride ' + data);
-            $('#oS').html(data.toString() + '<span class="drounitlabel"> %</span>');
+            spindleOvCurrent = parseInt(data) || 100;
+            let el = document.getElementById('oS');
+            if (el && document.activeElement !== el) el.value = spindleOvCurrent;
         });
 
         // real feed report (from server)
@@ -736,6 +736,32 @@ function updateStatus(data) {
     $('#machineStatus').html(state);
 }
 
+
+// GRBL only accepts *relative* override commands (reset / ±10% / ±1%), so a
+// "set to N%" walks from the last reported value with the shortest sequence.
+var feedOvCurrent = 100;
+var spindleOvCurrent = 100;
+
+function overrideSteps(current, target) {
+    target = Math.max(10, Math.min(200, Math.round(Number(target) || 100)));
+    if (target === current) return [];
+    if (target === 100) return [0]; // exact reset in one byte
+    let steps = [];
+    let delta = target - current;
+    for (; Math.abs(delta) >= 10; delta -= Math.sign(delta) * 10) steps.push(Math.sign(delta) * 10);
+    for (; delta !== 0; delta -= Math.sign(delta)) steps.push(Math.sign(delta));
+    return steps;
+}
+
+export function feedOverrideTo(target) {
+    if (!socket || !machineConnected) return;
+    overrideSteps(feedOvCurrent, target).forEach(s => socket.emit('feedOverride', s));
+}
+
+export function spindleOverrideTo(target) {
+    if (!socket || !machineConnected) return;
+    overrideSteps(spindleOvCurrent, target).forEach(s => socket.emit('spindleOverride', s));
+}
 
 // Re-establish the websocket to the comm server (socket.io also retries on
 // its own). Returns false when the socket was never created this session —
