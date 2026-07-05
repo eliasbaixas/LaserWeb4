@@ -155,14 +155,21 @@ class Operation extends React.Component {
     UNSAFE_componentWillMount() {
         // click = make current + highlight its documents on the canvas;
         // ignore clicks that were meant for the embedded controls
+        // NB: legacy react-bootstrap modals render via a portal, and React
+        // events bubble through the REACT tree, not the DOM — so clicks
+        // inside any modal would reach these handlers. Guard with .modal/.vex.
         this.selectOperation = e => {
-            if (e && e.target.closest && e.target.closest('button, select, input, a, .btn')) return;
+            if (e && e.target.closest && e.target.closest('button, select, input, a, .btn, .modal, .vex')) return;
             const { op, dispatch } = this.props;
             dispatch(setCurrentOperation(op.id));
             dispatch(selectDocuments(false));
             for (const id of (op.documents || [])) dispatch(toggleSelectDocument(id));
         };
-        this.openEdit = e => { if (e) e.stopPropagation(); this.setState({ showEdit: true }); };
+        this.openEdit = e => {
+            if (e && e.target.closest && e.target.closest('.modal, .vex')) return;
+            if (e) e.stopPropagation();
+            this.setState({ showEdit: true });
+        };
         this.closeEdit = () => this.setState({ showEdit: false });
         this.setType = e => this.props.dispatch(setOperationAttrs({ type: e.target.value }, this.props.op.id));
         this.setTypeString = e => this.props.dispatch(setOperationAttrs({ type: e }, this.props.op.id));
