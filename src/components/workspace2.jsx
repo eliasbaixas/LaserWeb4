@@ -14,21 +14,21 @@
 
 import React, { useEffect, useRef, useState } from 'react'
 import { useSelector } from 'react-redux'
-import { Application, Container, Graphics } from 'pixi.js'
+import { Application, Assets, Container, Graphics, Matrix, Sprite } from 'pixi.js'
 import { Viewport } from 'pixi-viewport'
 
 import { GlobalStore } from '../index'
 
 const COLORS = {
-    background: 0x14171c,
-    bed: 0x10141c,
-    gridMinor: 0x232a38,
-    gridMajor: 0x35405a,
-    bedBorder: 0x4da3ff,
-    origin: 0x45c078,
-    cursor: 0xe05b5b,
-    docDefault: 0xd7dce4,
-    docSelected: 0x4da3ff,
+    background: 0xeef0f4,
+    bed: 0xffffff,
+    gridMinor: 0xe2e5eb,
+    gridMajor: 0xc6ccd8,
+    bedBorder: 0x3d8fe0,
+    origin: 0x2f9e5f,
+    cursor: 0xd93a36,
+    docDefault: 0x22262c,
+    docSelected: 0x1f6fd0,
 }
 
 function colorOf(doc) {
@@ -72,7 +72,20 @@ function drawGrid(g, w, h) {
 function drawDocuments(container, documents) {
     container.removeChildren().forEach(c => c.destroy())
     for (const doc of documents) {
-        if (!doc.rawPaths || !doc.transform2d || doc.visible === false) continue
+        if (doc.visible === false) continue
+        // raster documents: a sprite placed by its transform2d matrix, which
+        // maps image pixels (y-down) to workspace mm (y-up)
+        if (doc.dataURL && doc.transform2d) {
+            const sprite = new Sprite()
+            sprite.setFromMatrix(new Matrix(...doc.transform2d))
+            sprite.alpha = doc.selected ? 0.75 : 1
+            Assets.load(doc.dataURL)
+                .then(tex => { if (!sprite.destroyed) sprite.texture = tex })
+                .catch(err => console.warn('[workspace2] image load failed:', err))
+            container.addChild(sprite)
+            continue
+        }
+        if (!doc.rawPaths || !doc.transform2d) continue
         const g = new Graphics()
         const color = colorOf(doc)
         for (const raw of doc.rawPaths) {
@@ -84,6 +97,58 @@ function drawDocuments(container, documents) {
         }
         container.addChild(g)
     }
+}
+
+// Minimal modal G-code walk for previewing: G0/G1 (G2/G3 approximated as
+// straight lines for now), G90/G91, X/Y/S words and M3/M4/M5. Returns flat
+// segment arrays split into rapids (laser off) and cuts (laser on, S > 0).
+export function parseGcodePreview(gcode) {
+    const rapids = []
+    const cuts = []
+    let x = 0, y = 0, mode = 1, power = 0, laserOn = false, relative = false
+    for (const rawLine of gcode.split(/\r?\n/)) {
+        const line = rawLine.split(';')[0].trim().toUpperCase()
+        if (!line) continue
+        let newX = null, newY = null
+        for (const tok of line.match(/[A-Z][-+]?[0-9.]*/g) || []) {
+            const val = parseFloat(tok.slice(1))
+            switch (tok[0]) {
+                case 'G':
+                    if (val === 90) relative = false
+                    else if (val === 91) relative = true
+                    else if (val >= 0 && val <= 3) mode = val
+                    break
+                case 'X': newX = relative ? x + val : val; break
+                case 'Y': newY = relative ? y + val : val; break
+                case 'S': power = val; break
+                case 'M':
+                    if (val === 3 || val === 4) laserOn = true
+                    else if (val === 5) laserOn = false
+                    break
+            }
+        }
+        if (newX !== null || newY !== null) {
+            const nx = newX !== null ? newX : x
+            const ny = newY !== null ? newY : y
+            const cutting = mode !== 0 && laserOn && power > 0
+            ;(cutting ? cuts : rapids).push(x, y, nx, ny)
+            x = nx
+            y = ny
+        }
+    }
+    return { rapids, cuts }
+}
+
+function drawGcode(g, gcode) {
+    g.clear()
+    if (!gcode) return
+    const { rapids, cuts } = parseGcodePreview(gcode)
+    for (let i = 0; i < rapids.length; i += 4)
+        g.moveTo(rapids[i], rapids[i + 1]).lineTo(rapids[i + 2], rapids[i + 3])
+    if (rapids.length) g.stroke({ width: 1, color: 0x5a6478, alpha: 0.7, pixelLine: true })
+    for (let i = 0; i < cuts.length; i += 4)
+        g.moveTo(cuts[i], cuts[i + 1]).lineTo(cuts[i + 2], cuts[i + 3])
+    if (cuts.length) g.stroke({ width: 1, color: 0xffa94d, pixelLine: true })
 }
 
 function drawCursor(g) {
@@ -99,6 +164,7 @@ export function Workspace2({ style }) {
     const [ready, setReady] = useState(0)
 
     const documents = useSelector(s => s.documents)
+    const gcode = useSelector(s => s.gcode.content)
     const machineWidth = useSelector(s => Number(s.settings.machineWidth) || 300)
     const machineHeight = useSelector(s => Number(s.settings.machineHeight) || 200)
 
@@ -132,9 +198,10 @@ export function Workspace2({ style }) {
 
                 const gridG = new Graphics()
                 const docsC = new Container()
+                const gcodeG = new Graphics()
                 const cursorG = new Graphics()
                 drawCursor(cursorG)
-                world.addChild(gridG, docsC, cursorG)
+                world.addChild(gridG, docsC, gcodeG, cursorG)
 
                 // fit the bed with a margin
                 const s = Math.min(
@@ -154,7 +221,7 @@ export function Workspace2({ style }) {
 
                 app.renderer.on('resize', (w, h) => viewport.resize(w, h))
 
-                pixiRef.current = { app, viewport, world, gridG, docsC, cursorG }
+                pixiRef.current = { app, viewport, world, gridG, docsC, gcodeG, cursorG }
                 setReady(r => r + 1)
             })
             .catch(err => console.error('[workspace2] init failed:', err))
@@ -183,6 +250,13 @@ export function Workspace2({ style }) {
         if (!p) return
         drawDocuments(p.docsC, documents)
     }, [ready, documents])
+
+    // G-code toolpath preview: grey = rapids, amber = cutting moves
+    useEffect(() => {
+        const p = pixiRef.current
+        if (!p) return
+        drawGcode(p.gcodeG, gcode)
+    }, [ready, gcode])
 
     return (
         <div ref={holderRef} style={{ ...style, overflow: 'hidden' }}
