@@ -465,6 +465,10 @@ class Com extends React.Component {
                 queueState += 'queue: ' + data;
             }
             $('#queueCnt').html(queueState);
+            if (dispatchRef) dispatchRef(setComAttrs({
+                queued: data,
+                jobPercent: (data > 0 && jobLines > 0) ? Math.round(((jobLines - data) / jobLines) * 100) : null,
+            }));
             if (playing && data === 0) {
                 playing = false;
                 paused = false;
@@ -745,6 +749,9 @@ function updateStatus(data) {
 //        }
     }
     $('#machineStatus').html(state);
+    // mirror into redux so React surfaces (pill, workspace2, future UI)
+    // can react to the machine state without scraping the DOM
+    if (dispatchRef) dispatchRef(setComAttrs({ machineStatus: state }));
 }
 
 

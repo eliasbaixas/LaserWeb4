@@ -15,6 +15,7 @@ import { selectPane } from '../actions/panes'
 
 const STATES = {
     machine: { color: '#3c763d', bg: '#dff0d8', border: '#d6e9c6', icon: 'plug' },
+    alarm: { color: '#fff', bg: '#c9302c', border: '#ac2925', icon: 'exclamation-triangle' },
     server: { color: '#8a6d3b', bg: '#fcf8e3', border: '#faebcc', icon: 'refresh' },
     none: { color: '#a94442', bg: '#f2dede', border: '#ebccd1', icon: 'refresh' },
 }
@@ -24,28 +25,39 @@ export function ConnectionStatus() {
     const selectedPane = useSelector(s => s.panes.selected)
     const serverConnected = useSelector(s => s.com.serverConnected)
     const machineConnected = useSelector(s => s.com.machineConnected)
+    const machineStatus = useSelector(s => s.com.machineStatus)
+    const queued = useSelector(s => s.com.queued)
+    const jobPercent = useSelector(s => s.com.jobPercent)
     const settings = useSelector(s => s.settings)
 
-    const state = machineConnected ? 'machine' : serverConnected ? 'server' : 'none'
+    const state = machineConnected
+        ? (machineStatus === 'Alarm' ? 'alarm' : 'machine')
+        : serverConnected ? 'server' : 'none'
     const s = STATES[state]
 
     const target = settings.connectVia === 'USB'
         ? `${settings.connectPort || '?'} @ ${settings.connectBaud || '?'}`
         : `${settings.connectVia || '?'} ${settings.connectIP || ''}`
 
+    const running = machineConnected && queued > 0
+    const machineLabel =
+        (machineStatus ? `${machineStatus}` : 'connected') +
+        (running ? ` · ${jobPercent !== null && jobPercent !== undefined ? jobPercent + '% sent, ' : ''}${queued} queued` : '')
     const label = {
-        machine: `${settings.connectVia || ''} ${settings.connectVia === 'USB' ? (settings.connectPort || '') : (settings.connectIP || '')}`.trim() || 'connected',
+        machine: machineLabel,
+        alarm: 'ALARM — home or unlock',
         server: 'machine disconnected',
         none: 'server disconnected',
     }[state]
 
     const title = {
         machine: `Machine connected (${target})`,
+        alarm: 'GRBL is in ALARM (after reset or hitting a limit): motion is locked until you Home or Unlock in Control.',
         server: `Click to reconnect the machine: ${target}`,
         none: 'Comm server unreachable — click to retry',
     }[state]
 
-    const clickable = state !== 'machine'
+    const clickable = state === 'server' || state === 'none'
     const onClick = () => {
         if (state === 'server') {
             reconnectMachine(settings)
