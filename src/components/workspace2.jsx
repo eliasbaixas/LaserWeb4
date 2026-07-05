@@ -18,7 +18,7 @@ import { Application, Assets, Container, Graphics, Matrix, Rectangle, Sprite } f
 import { Viewport } from 'pixi-viewport'
 
 import { GlobalStore } from '../index'
-import { selectDocument, toggleSelectDocument, selectDocuments } from '../actions/document'
+import { selectDocument, toggleSelectDocument, selectDocuments, removeDocumentSelected } from '../actions/document'
 
 const COLORS = {
     background: 0xeef0f4,
@@ -138,6 +138,10 @@ function drawDocuments(container, documents) {
             // hairline strokes are unclickable; select by bounding box
             g.hitArea = new Rectangle(x1, y1, x2 - x1, y2 - y1)
             tapToSelect(g, doc.id)
+            if (doc.selected) {
+                g.rect(x1 - 2, y1 - 2, (x2 - x1) + 4, (y2 - y1) + 4)
+                    .stroke({ width: 1, color: COLORS.docSelected, alpha: 0.9, pixelLine: true })
+            }
         }
         container.addChild(g)
     }
@@ -305,9 +309,39 @@ export function Workspace2({ style }) {
         drawGcode(p.gcodeG, gcode)
     }, [ready, gcode])
 
+    // Backspace / Delete removes the selected documents (unless typing)
+    useEffect(() => {
+        const onKey = (e) => {
+            if (e.key !== 'Delete' && e.key !== 'Backspace') return
+            const t = e.target
+            if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return
+            if (!GlobalStore().getState().documents.some(d => d.selected)) return
+            e.preventDefault() // Backspace must not navigate back
+            GlobalStore().dispatch(removeDocumentSelected())
+        }
+        window.addEventListener('keydown', onKey)
+        return () => window.removeEventListener('keydown', onKey)
+    }, [])
+
+    const selectedDocs = documents.filter(d => d.selected)
+
     return (
-        <div ref={holderRef} style={{ ...style, overflow: 'hidden' }}
-            title="Workspace 2.0 (PixiJS prototype) — drag to pan, wheel to zoom" />
+        <div style={{ ...style, overflow: 'hidden' }}>
+            <div ref={holderRef} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+                title="Workspace 2.0 (PixiJS prototype) — drag to pan, wheel to zoom, click to select" />
+            {selectedDocs.length > 0 &&
+                <div style={{
+                    position: 'absolute', left: 10, bottom: 10, zIndex: 2,
+                    padding: '4px 10px', borderRadius: 12, fontSize: 12,
+                    background: 'rgba(31,111,208,.92)', color: '#fff',
+                    boxShadow: '0 1px 4px rgba(0,0,0,.3)', pointerEvents: 'none',
+                }}>
+                    {selectedDocs.length === 1
+                        ? (selectedDocs[0].name || 'object')
+                        : `${selectedDocs.length} objects`}
+                    <span style={{ opacity: 0.75 }}> — ⌫ delete</span>
+                </div>}
+        </div>
     )
 }
 
