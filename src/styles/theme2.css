@@ -1,16 +1,35 @@
+/* Design tokens — swap this block for Claude Design's palette and the
+ * whole legacy UI follows. Components should reference vars, not hexes. */
+:root {
+    --fp-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --fp-text: #23272e;
+    --fp-text-soft: #3a4150;
+    --fp-text-muted: #6b7484;
+    --fp-bg: #f2f3f6;
+    --fp-surface: #ffffff;
+    --fp-surface-soft: #fafbfc;
+    --fp-border: #dde1e8;
+    --fp-border-input: #cfd4dd;
+    --fp-accent: #3d8fe0;
+    --fp-accent-ring: rgba(61, 143, 224, .25);
+    --fp-radius: 8px;
+    --fp-radius-sm: 6px;
+    --fp-shadow: 0 1px 2px rgba(20, 24, 32, .06);
+}
+
 /* theme2 — a modern skin over Bootstrap 3: breathing room, bigger targets,
  * flat surfaces, clearer hierarchy. Pure CSS: no logic, no layout changes. */
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-family: var(--fp-font);
     font-size: 13.5px;
-    color: #23272e;
-    background: #f2f3f6;
+    color: var(--fp-text);
+    background: var(--fp-bg);
 }
 
 /* --- controls: larger targets, flat, rounded ------------------------- */
 .btn {
-    border-radius: 6px;
+    border-radius: var(--fp-radius-sm);
     background-image: none;
     box-shadow: none;
     text-shadow: none;
@@ -18,24 +37,24 @@ body {
 }
 .btn-xs { padding: 3px 8px; font-size: 12px; }
 .btn-sm { padding: 5px 10px; }
-.btn:focus, .btn:active { outline: none; box-shadow: 0 0 0 2px rgba(61, 143, 224, .25); }
+.btn:focus, .btn:active { outline: none; box-shadow: 0 0 0 2px var(--fp-accent-ring); }
 
 .form-control, select, input[type="text"], input[type="number"] {
-    border-radius: 6px;
+    border-radius: var(--fp-radius-sm);
     box-shadow: none;
-    border-color: #cfd4dd;
+    border-color: var(--fp-border-input);
 }
 .form-control:focus, select:focus, input:focus {
-    border-color: #3d8fe0;
-    box-shadow: 0 0 0 2px rgba(61, 143, 224, .18);
+    border-color: var(--fp-accent);
+    box-shadow: 0 0 0 2px var(--fp-accent-ring);
 }
 .input-xs { height: 24px; font-size: 12px; }
 
 /* --- panels: flat cards with air ------------------------------------- */
 .panel {
-    border-radius: 8px;
-    box-shadow: 0 1px 2px rgba(20, 24, 32, .06);
-    border-color: #dde1e8;
+    border-radius: var(--fp-radius);
+    box-shadow: var(--fp-shadow);
+    border-color: var(--fp-border);
     margin-bottom: 8px;
 }
 .panel-heading {
@@ -45,15 +64,15 @@ body {
     padding: 6px 10px;
 }
 .panel-body { padding: 10px; }
-.panel-primary > .panel-heading { background-color: #3d8fe0; border-color: #3d8fe0; }
+.panel-primary > .panel-heading { background-color: #3d8fe0; border-color: var(--fp-accent); }
 .panel-info > .panel-heading { background-color: #eaf3fc; border-color: #d3e5f6; color: #1f5e9e; }
 .panel-danger > .panel-heading { background-color: #fdeeee; border-color: #f5d4d4; color: #a03432; }
 .panel-success > .panel-heading { background-color: #eaf7ef; border-color: #cfe9da; color: #24734a; }
 .panel-warning > .panel-heading { background-color: #fdf6e6; border-color: #f3e4bd; color: #8a6d1f; }
 
 .well {
-    background: #fafbfc;
-    border-radius: 8px;
+    background: var(--fp-surface-soft);
+    border-radius: var(--fp-radius);
     border-color: #e3e7ee;
     box-shadow: none;
     padding: 10px;
@@ -65,13 +84,13 @@ body {
     border-radius: 10px;
     font-weight: 600;
     padding: 3px 8px;
-    background-color: #6b7484;
+    background-color: var(--fp-text-muted);
 }
-label { font-weight: 600; color: #3a4150; }
-small, .small { color: #6b7484; }
+label { font-weight: 600; color: var(--fp-text-soft); }
+small, .small { color: var(--fp-text-muted); }
 
 /* --- alerts ----------------------------------------------------------- */
-.alert { border-radius: 8px; box-shadow: none; }
+.alert { border-radius: var(--fp-radius); box-shadow: none; }
 
 /* --- modals ------------------------------------------------------------ */
 .modal-content { border-radius: 10px; box-shadow: 0 12px 40px rgba(10, 14, 20, .25); }
@@ -79,7 +98,7 @@ small, .small { color: #6b7484; }
 
 /* --- sidebar dock: bigger, calmer ------------------------------------- */
 .dock .btn, ul.dock li {
-    border-radius: 8px;
+    border-radius: var(--fp-radius);
 }
 
 /* --- tables in panes --------------------------------------------------- */
@@ -93,13 +112,13 @@ small, .small { color: #6b7484; }
 
 /* --- dropdowns ---------------------------------------------------------- */
 .dropdown-menu {
-    border-radius: 8px;
+    border-radius: var(--fp-radius);
     box-shadow: 0 6px 24px rgba(10, 14, 20, .16);
-    border-color: #dde1e8;
+    border-color: var(--fp-border);
     padding: 6px 0;
 }
 .dropdown-menu > li > a { padding: 5px 14px; }
 
 /* --- progress bars ------------------------------------------------------ */
-.progress { border-radius: 6px; box-shadow: none; background: #e8ebf0; height: 18px; }
+.progress { border-radius: var(--fp-radius-sm); box-shadow: none; background: #e8ebf0; height: 18px; }
 .progress-bar { box-shadow: none; }
