@@ -91,6 +91,34 @@ const operationBase = object('operation', OPERATION_INITIALSTATE);
 const operationLatheTurnBase = object('operation_lathe_turn', OPERATION_LATHE_TURN_INITIALSTATE);
 const operationLatheTurnsBase = objectArray('operation_lathe_turn', operationLatheTurnBase);
 
+// The user-tunable cutting parameters worth carrying over to the next
+// operation: once you set cutRate to 600, new operations default to 600.
+const REMEMBERED_FIELDS = [
+    'direction', 'laserPower', 'laserPowerMin', 'laserPowerMax',
+    'laserDiameter', 'lineDistance', 'lineAngle', 'passes', 'cutWidth',
+    'toolSpeed', 'passDepth', 'plungeRate', 'cutRate', 'overScan', 'margin',
+];
+const REMEMBERED_KEY = 'LaserWeb.lastOperationValues';
+
+function rememberOperationValues(attrs) {
+    let interesting = {};
+    for (let k of REMEMBERED_FIELDS)
+        if (attrs[k] !== undefined) interesting[k] = attrs[k];
+    if (!Object.keys(interesting).length) return;
+    try {
+        window.localStorage.setItem(REMEMBERED_KEY,
+            JSON.stringify({ ...rememberedOperationValues(), ...interesting }));
+    } catch (e) { /* private mode / full storage: just don't remember */ }
+}
+
+export function rememberedOperationValues() {
+    try {
+        return JSON.parse(window.localStorage.getItem(REMEMBERED_KEY)) || {};
+    } catch (e) {
+        return {};
+    }
+}
+
 export const OPERATION_DEFAULTS = (state) => {
     if (!state) state = GlobalStore().getState()
     return {
@@ -103,6 +131,8 @@ export const OPERATION_DEFAULTS = (state) => {
         startHeight: state.settings.machineZStartHeight,
         aAxisDiameter: state.settings.machineAAxisDiameter,
         segmentLength:  state.settings.gcodeSegmentLength,
+        // last-used values win over machine-derived defaults
+        ...rememberedOperationValues(),
     }
 }
 
@@ -149,6 +179,7 @@ export const operations = (state, action) => {
                 newIndex = state.length - 1;
             return arrayMoveImmutable(state.slice(), index, newIndex);
         case 'OPERATION_SET_ATTRS':
+            rememberOperationValues(action.payload.attrs);
             if (action.payload.attrs.expanded)
                 state = state.map(op => ({ ...op, expanded: op.id === action.payload.id }));
             break;
