@@ -70,6 +70,38 @@ function drawGrid(g, w, h) {
     g.circle(0, 0, 2).fill(COLORS.origin)
 }
 
+// Dashed rectangle path (Graphics has no native dash); offset shifts the
+// pattern start so two passes can interleave colors (marching ants).
+function dashedRectPath(g, x1, y1, x2, y2, dash, gap, offset = 0) {
+    const edges = [[x1, y1, x2, y1], [x2, y1, x2, y2], [x2, y2, x1, y2], [x1, y2, x1, y1]]
+    for (const [ax, ay, bx, by] of edges) {
+        const len = Math.hypot(bx - ax, by - ay)
+        if (!len) continue
+        const ux = (bx - ax) / len, uy = (by - ay) / len
+        for (let t = offset; t < len; t += dash + gap) {
+            const e = Math.min(t + dash, len)
+            if (e <= t) continue
+            g.moveTo(ax + ux * t, ay + uy * t).lineTo(ax + ux * e, ay + uy * e)
+        }
+    }
+}
+
+// Selection overlay: blue/white alternating dashes, sized in screen pixels
+// (redrawn on zoom) so it never reads as document geometry.
+function drawSelection(g, boundsList, scale) {
+    g.clear()
+    const s = Math.max(scale, 0.001)
+    const pad = 4 / s, dash = 6 / s
+    for (const b of boundsList) {
+        if (!b.selected) continue
+        const x1 = b.x1 - pad, y1 = b.y1 - pad, x2 = b.x2 + pad, y2 = b.y2 + pad
+        dashedRectPath(g, x1, y1, x2, y2, dash, dash, 0)
+        g.stroke({ width: 2, color: COLORS.docSelected, pixelLine: true })
+        dashedRectPath(g, x1, y1, x2, y2, dash, dash, dash)
+        g.stroke({ width: 2, color: 0xffffff, pixelLine: true })
+    }
+}
+
 // A tap is a press+release that barely moved — a viewport pan gesture that
 // happens to start on an object must not select it.
 function onTap(obj, handler) {
@@ -106,8 +138,9 @@ export function computeAttachedIds(documents, operations) {
     return attached
 }
 
-function drawDocuments(container, documents, attachedIds, layers) {
+function drawDocuments(container, documents, attachedIds, layers, boundsList, onBoundsChange) {
     container.removeChildren().forEach(c => c.destroy())
+    boundsList.length = 0
     for (const doc of documents) {
         if (doc.visible === false) continue
         const attached = attachedIds.has(doc.id)
@@ -130,8 +163,17 @@ function drawDocuments(container, documents, attachedIds, layers) {
                     // mm-y; the legacy engine flips the texture V in its shader
                     // instead. Mirror locally so they don't render upside down.
                     // SVG-embedded images bake the flip into transform2d (d < 0).
-                    if (t[3] > 0)
-                        sprite.setFromMatrix(new Matrix(...t).append(new Matrix(1, 0, 0, -1, 0, tex.height)))
+                    let m = new Matrix(...t)
+                    if (t[3] > 0) m = m.append(new Matrix(1, 0, 0, -1, 0, tex.height))
+                    sprite.setFromMatrix(m)
+                    const pts = [[0, 0], [tex.width, 0], [0, tex.height], [tex.width, tex.height]]
+                        .map(([px, py]) => m.apply({ x: px, y: py }))
+                    boundsList.push({
+                        selected: doc.selected,
+                        x1: Math.min(...pts.map(p => p.x)), x2: Math.max(...pts.map(p => p.x)),
+                        y1: Math.min(...pts.map(p => p.y)), y2: Math.max(...pts.map(p => p.y)),
+                    })
+                    if (onBoundsChange) onBoundsChange()
                 })
                 .catch(err => console.warn('[workspace2] image load failed:', err))
             tapToSelect(sprite, doc.id)
@@ -159,10 +201,7 @@ function drawDocuments(container, documents, attachedIds, layers) {
             // hairline strokes are unclickable; select by bounding box
             g.hitArea = new Rectangle(x1, y1, x2 - x1, y2 - y1)
             tapToSelect(g, doc.id)
-            if (doc.selected) {
-                g.rect(x1 - 2, y1 - 2, (x2 - x1) + 4, (y2 - y1) + 4)
-                    .stroke({ width: 1, color: COLORS.docSelected, alpha: 0.9, pixelLine: true })
-            }
+            boundsList.push({ selected: doc.selected, x1, y1, x2, y2 })
         }
         container.addChild(g)
     }
@@ -230,6 +269,7 @@ function drawCursor(g) {
 export function Workspace2({ style }) {
     const holderRef = useRef(null)
     const pixiRef = useRef(null)
+    const boundsRef = useRef([])
     const [ready, setReady] = useState(0)
 
     const documents = useSelector(s => s.documents)
@@ -282,9 +322,14 @@ export function Workspace2({ style }) {
                 const gridG = new Graphics()
                 const docsC = new Container()
                 const gcodeG = new Graphics()
+                const selG = new Graphics()
                 const cursorG = new Graphics()
                 drawCursor(cursorG)
-                world.addChild(gridG, docsC, gcodeG, cursorG)
+                world.addChild(gridG, docsC, gcodeG, selG, cursorG)
+
+                // dash size is screen-relative: refresh the overlay on zoom
+                viewport.on('zoomed', () =>
+                    drawSelection(selG, boundsRef.current, viewport.scale.x))
 
                 // tap on empty bed = deselect (documents sit above and win)
                 onTap(gridG, () => GlobalStore().dispatch(selectDocuments(false)))
@@ -307,7 +352,7 @@ export function Workspace2({ style }) {
 
                 app.renderer.on('resize', (w, h) => viewport.resize(w, h))
 
-                pixiRef.current = { app, viewport, world, gridG, docsC, gcodeG, cursorG }
+                pixiRef.current = { app, viewport, world, gridG, docsC, gcodeG, selG, cursorG }
                 setReady(r => r + 1)
             })
             .catch(err => console.error('[workspace2] init failed:', err))
@@ -334,7 +379,10 @@ export function Workspace2({ style }) {
     useEffect(() => {
         const p = pixiRef.current
         if (!p) return
-        drawDocuments(p.docsC, documents, computeAttachedIds(documents, operations), layers)
+        const refreshSelection = () => drawSelection(p.selG, boundsRef.current, p.viewport.scale.x)
+        drawDocuments(p.docsC, documents, computeAttachedIds(documents, operations), layers,
+            boundsRef.current, refreshSelection)
+        refreshSelection()
     }, [ready, documents, operations, layers])
 
     // G-code toolpath preview: grey = rapids, amber = cutting moves
