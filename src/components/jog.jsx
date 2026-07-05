@@ -388,6 +388,10 @@ class Jog extends React.Component {
         feedrate = jQuery('#jogfeedxy').val() * mult;
 
         let bounds=this.getGcodeBounds(this.props.gcode)
+        if (!bounds) {
+            CommandHistory.warn('Check size: no G-code with movements loaded — generate a job in the Files pane first.')
+            return;
+        }
         let power = this.props.settings.gcodeCheckSizePower / 100 * this.props.settings.gcodeSMaxValue;
         let moves = `
             G90\n
