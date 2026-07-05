@@ -480,6 +480,17 @@ class Com extends React.Component {
                     CommandHistory.write("Job started at " + jobStartTime.toString(), CommandHistory.SUCCESS);
                     CommandHistory.write("Job finished at " + jobFinishTime.toString(), CommandHistory.SUCCESS);
                     CommandHistory.write("Elapsed time: " + secToHMS(elapsedTime), CommandHistory.SUCCESS);
+                    // Material-tuning advisor: overrides are how you explore
+                    // speed/power live; remind the user to bake good results
+                    // into the operation + material preset.
+                    if (feedOvCurrent !== 100 || spindleOvCurrent !== 100) {
+                        CommandHistory.write(
+                            'This job ran with live overrides: F=' + feedOvCurrent + '%, S=' + spindleOvCurrent + '%. ' +
+                            'Happy with the result? Bake them in: multiply the operation\'s cut rate by ' + (feedOvCurrent / 100) +
+                            ' and its power by ' + (spindleOvCurrent / 100) +
+                            ', save it as a material preset (💾 button on the operation), then reset overrides to 100%.',
+                            CommandHistory.WARN);
+                    }
                     jobStartTime = -1;
                     accumulatedJobTime += elapsedTime;
                     let AJT = accumulatedJobTime;
