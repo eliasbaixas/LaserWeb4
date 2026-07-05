@@ -53,8 +53,43 @@ const reducer = compose(
 )(hot);
 
 const storage = compose(
-  filter(['settings','machineProfiles','splitters','materialDatabase'])
+  filter(['settings','machineProfiles','splitters','materialDatabase',
+          'documents','operations','currentOperation'])
 )(adapter(window.localStorage));
+
+/* Documents carry parsed geometry (and bitmaps as dataURLs), so persisted
+ * state can reach megabytes: write at most every 500ms instead of on every
+ * dispatch, and survive a full/blocked localStorage instead of throwing on
+ * each action. Big workspaces that exceed the quota simply stop persisting
+ * (use the Workspace save button for those). */
+let pendingPut = null;
+let putTimer = null;
+let quotaWarned = false;
+const debouncedStorage = {
+  ...storage,
+  put(key, value, callback) {
+    pendingPut = value;
+    if (!putTimer) {
+      putTimer = setTimeout(() => {
+        putTimer = null;
+        try {
+          storage.put(key, pendingPut, (err) => {
+            if (err && !quotaWarned) {
+              quotaWarned = true;
+              console.warn('Workspace no longer fits in localStorage; autosave disabled for this session. Use Workspace ⇒ Save.', err);
+            }
+          });
+        } catch (err) {
+          if (!quotaWarned) {
+            quotaWarned = true;
+            console.warn('Workspace no longer fits in localStorage; autosave disabled for this session. Use Workspace ⇒ Save.', err);
+          }
+        }
+      }, 500);
+    }
+    if (callback) callback(null);
+  }
+};
 
 
 // adds getState() to any action to get the global Store :slick:
@@ -90,7 +125,7 @@ const composeEnhancers = window.__REDUX_DEVTOOLS_EXTENSION_COMPOSE__ || compose;
 
 const middleware = composeEnhancers(
   applyMiddleware(...middlewares),
-  persistState(storage, LOCALSTORAGE_KEY),
+  persistState(debouncedStorage, LOCALSTORAGE_KEY),
 );
 
 const store = createStore(reducer, middleware);
