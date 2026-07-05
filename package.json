@@ -111,6 +111,7 @@
   },
   "dependencies": {
     "bootstrap-range-input": "^1.0.0",
+    "bootstrap5": "npm:bootstrap@^5.3.8",
     "classnames": "^2.5.1",
     "dxf": "^4.6.1",
     "json-stringify-safe": "^5.0.1",
