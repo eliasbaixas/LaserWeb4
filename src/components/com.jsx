@@ -738,7 +738,9 @@ function updateStatus(data) {
 
 
 // Re-establish the websocket to the comm server (socket.io also retries on
-// its own). Returns false when the server was never connected this session.
+// its own). Returns false when the socket was never created this session —
+// that only happens in the Com component (mounted with the Comms pane), so
+// callers should send the user there.
 export function reconnectServer() {
     if (!socket) return false;
     if (!serverConnected) socket.connect();

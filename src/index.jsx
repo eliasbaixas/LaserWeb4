@@ -10,15 +10,18 @@
  * 
  * FIXME: Actually do that react-bootstrap upgrade. It is really needed. */
 let consoleError_ = console.error;
+let renderSubtreeWarned = false;
 console.error = function (... args) {
     if (!args[0]?.includes("ReactDOM.unstable_renderSubtreeIntoContainer() is no longer supported in React 18.")) {
     // if (!args[0]?.startsWith("Warning: ")) {
         consoleError_.call(console, ... args);
-    } else {
-        /* We do still log it as a compact warning, to ensure that this
-         * issue doesn't get overlooked in the long term. Developers can
-         * filter out all warnings in their browser console anyway. */
-        console.warn(`(... ReactDOM.unstable_renderSubtreeIntoContainer() warning suppressed ...)`);
+    } else if (!renderSubtreeWarned) {
+        /* We do still log it once as a compact warning, to ensure that this
+         * issue doesn't get overlooked in the long term. Logging it every
+         * time (react-bootstrap tooltips trigger it constantly) just buries
+         * the console in noise. */
+        renderSubtreeWarned = true;
+        console.warn(`(... ReactDOM.unstable_renderSubtreeIntoContainer() warning suppressed; further occurrences muted ...)`);
     }
 }
 

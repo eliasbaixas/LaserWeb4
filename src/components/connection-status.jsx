@@ -7,10 +7,11 @@
  */
 
 import React from 'react'
-import { useSelector } from 'react-redux'
+import { useSelector, useDispatch } from 'react-redux'
 
 import Icon from './font-awesome'
 import { reconnectServer, reconnectMachine } from './com'
+import { selectPane } from '../actions/panes'
 
 const STATES = {
     machine: { color: '#3c763d', bg: '#dff0d8', border: '#d6e9c6', icon: 'plug' },
@@ -19,6 +20,8 @@ const STATES = {
 }
 
 export function ConnectionStatus() {
+    const dispatch = useDispatch()
+    const selectedPane = useSelector(s => s.panes.selected)
     const serverConnected = useSelector(s => s.com.serverConnected)
     const machineConnected = useSelector(s => s.com.machineConnected)
     const settings = useSelector(s => s.settings)
@@ -44,8 +47,13 @@ export function ConnectionStatus() {
 
     const clickable = state !== 'machine'
     const onClick = () => {
-        if (state === 'server') reconnectMachine(settings)
-        else if (state === 'none') reconnectServer()
+        if (state === 'server') {
+            reconnectMachine(settings)
+        } else if (state === 'none' && !reconnectServer()) {
+            // The websocket only gets created by the Comms pane; panes mount
+            // lazily, so jump there — it connects to the server on mount.
+            if (selectedPane !== 'com') dispatch(selectPane('com'))
+        }
     }
 
     return (
