@@ -6,6 +6,7 @@
  */
 
 import React from 'react'
+import { t } from '../lib/i18n'
 
 export default class ErrorBoundary extends React.Component {
     constructor(props) {
@@ -25,10 +26,10 @@ export default class ErrorBoundary extends React.Component {
         if (this.state.error) {
             return (
                 <div className="alert alert-danger" style={{ margin: 8 }}>
-                    <p><strong>This panel crashed.</strong> The rest of the app keeps working.</p>
+                    <p><strong>{t("This panel crashed.")}</strong> {t("The rest of the app keeps working.")}</p>
                     <pre style={{ fontSize: 11, whiteSpace: 'pre-wrap' }}>{String(this.state.error)}</pre>
                     <button className="btn btn-xs btn-default" onClick={() => this.setState({ error: null })}>
-                        Try again
+                        {t("Try again")}
                     </button>
                 </div>
             )

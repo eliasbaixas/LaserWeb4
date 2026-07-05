@@ -12,6 +12,7 @@ import { setSettingsAttrs } from '../actions/settings';
 import { xOffset, yOffset } from './com';
 
 import CommandHistory from './command-history';
+import { t } from '../lib/i18n';
 
 import { Input, TextField, NumberField, ToggleField, SelectField } from './forms';
 import { runCommand, runJob, pauseJob, resumeJob, abortJob, clearAlarm, setZero, gotoZero, setPosition, home, probe, checkSize, laserTest, jog, jogTo, feedOverride, spindleOverride, feedOverrideTo, spindleOverrideTo, resetMachine } from './com';
@@ -577,8 +578,8 @@ class Jog extends React.Component {
                                 : 'No G-code loaded — generate it in the Files pane (Run Job would say "Job empty")'}
                             style={{ marginRight: 5 }}>
                             {this.props.gcode
-                                ? `G-code: ${this.props.gcode.split(/\r\n|\r|\n/).length} lines${this.props.gcodeDirty ? ' (stale)' : ''}`
-                                : 'no G-code'}
+                                ? `${t('G-code')}: ${this.props.gcode.split(/\r\n|\r|\n/).length} ${t('lines')}${this.props.gcodeDirty ? t(' (stale)') : ''}`
+                                : t('no G-code')}
                         </span>
                         <div id="mPosition" className="well well-sm" style={{ marginBottom: 7}}>
                             <AxisControl jogRef={this} axis="X" canMax={true} color="#ffdbdb" />

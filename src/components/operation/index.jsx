@@ -28,6 +28,7 @@ import { MaterialPickerButton, MaterialSaveButton } from '../material-database'
 
 import { ButtonToolbar, Button, Modal } from 'react-bootstrap';
 import Icon from '../font-awesome'
+import { t } from '../../lib/i18n'
 
 import { Details } from '../material-database'
 
@@ -420,8 +421,8 @@ class Operation extends React.Component {
                         {this.renderFields()}
                     </Modal.Body>
                     <Modal.Footer>
-                        <small style={{ float: 'left', color: '#888' }}>Changes apply instantly — regenerate the G-code when done.</small>
-                        <Button bsStyle="primary" onClick={this.closeEdit}>Done</Button>
+                        <small style={{ float: 'left', color: '#888' }}>{t('Changes apply instantly — regenerate the G-code when done.')}</small>
+                        <Button bsStyle="primary" onClick={this.closeEdit}>{t("Done")}</Button>
                     </Modal.Footer>
                 </Modal>
             </div>

@@ -31,6 +31,7 @@ import { getGcode } from '../lib/cam-gcode';
 import { sendAsFile, appendExt, openDataWindow, captureConsole, humanFileSize } from '../lib/helpers';
 import { strftime } from '../lib/strftime'
 import { shapeSvg } from '../lib/shapes'
+import { t } from '../lib/i18n'
 import { ValidateSettings } from '../reducers/settings';
 import { ApplicationSnapshotToolbar } from './settings';
 
@@ -262,7 +263,7 @@ export function Cam() {
                         <tbody>
                             <tr>
                                 <td>
-                                    <label>Workspace</label>
+                                    <label>{t("Workspace")}</label>
                                 </td>
                                 <td>
                                     <ApplicationSnapshotToolbar loadButton saveButton stateKeys={['documents', 'operations', 'currentOperation', 'settings.toolFeedUnits']} saveName={strftime(settings.workspaceFilename + '.json')} label="Workspace" className="well well-sm">
@@ -282,12 +283,12 @@ export function Cam() {
                         <tbody>
                             <tr>
                                 <td>
-                                    <label>Documents {Info(<small>Tip:  Hold <kbd>Ctrl</kbd> to click multiple documents</small>)}</label>
+                                    <label>{t("Documents")} {Info(<small>Tip:  Hold <kbd>Ctrl</kbd> to click multiple documents</small>)}</label>
                                 </td>
                                 <td style={{display:"flex", justifyContent: "flex-end" }}>
                                     <AddShapeButtons />
                                     <FileField style={{   position: 'relative', cursor: 'pointer' }} onChange={handleLoadDocument} accept={DOCUMENT_FILETYPES}>
-                                        <button title="Add a DXF/SVG/PNG/BMP/JPG document to the document tree" className="btn btn-xs btn-primary"><i className="fa fa-fw fa-folder-open" />Add Document</button>
+                                        <button title="Add a DXF/SVG/PNG/BMP/JPG document to the document tree" className="btn btn-xs btn-primary"><i className="fa fa-fw fa-folder-open" />{t("Add Document")}</button>
                                         {(panes.visible) ? <NoDocumentsError camBounds={bounds} settings={settings} documents={documents} operations={operations} /> : undefined}
                                     </FileField>&nbsp;
                                 </td>
@@ -304,21 +305,21 @@ export function Cam() {
                         {libraryRoots.length ? (
                             <div style={{ borderTop: '1px solid #ccc', marginTop: 6, paddingTop: 4 }}>
                                 <label title="Loaded files kept off the bed: not drawn, not cut. Add them back when needed.">
-                                    <Icon name="archive" /> Library <small>({libraryRoots.length})</small>
+                                    <Icon name="archive" /> {t("Library")} <small>({libraryRoots.length})</small>
                                 </label>
                                 {libraryRoots.map(d => (
                                     <div key={d.id}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '1px 2px' }}>
                                             {(d.children && d.children.length) ?
                                                 <button className="btn btn-xs btn-link" style={{ padding: 0 }}
-                                                    title="Pick parts of this file"
+                                                    title={t("Pick parts of this file")}
                                                     onClick={() => setLibExpanded(libExpanded === d.id ? null : d.id)}>
                                                     <Icon name={libExpanded === d.id ? 'caret-down' : 'caret-right'} />
                                                 </button> : <span style={{ width: 10 }} />}
                                             <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#777' }}>{d.name}</span>
-                                            <button className="btn btn-xs btn-success" title="Add the whole file to the bed"
+                                            <button className="btn btn-xs btn-success" title={t("Add the whole file to the bed")}
                                                 onClick={() => setSubtreeVisible(d.id, true)}><Icon name="level-up" /></button>
-                                            <button className="btn btn-xs btn-danger" title="Delete from the library"
+                                            <button className="btn btn-xs btn-danger" title={t("Delete from the library")}
                                                 onClick={() => subtreeIds(d.id).forEach(id => dispatch(removeDocument(id)))}><Icon name="trash" /></button>
                                         </div>
                                         {libExpanded === d.id && (d.children || []).map(cid => {
@@ -365,7 +366,7 @@ export function Cam() {
                             <th>GCODE</th>
                             <td style={{ width: "80%", textAlign: "right" }}>{!gcoding.enable ? (
                                 <ButtonToolbar style={{ float: "right" }}>
-                                    <button title="Generate G-Code from Operations above" className={"btn btn-xs btn-attention " + (dirty ? 'btn-warning' : 'btn-primary')} disabled={!valid || gcoding.enable} onClick={(e) => generateGcode(e)}><i className="fa fa-fw fa-industry" />&nbsp;Generate</button>
+                                    <button title="Generate G-Code from Operations above" className={"btn btn-xs btn-attention " + (dirty ? 'btn-warning' : 'btn-primary')} disabled={!valid || gcoding.enable} onClick={(e) => generateGcode(e)}><i className="fa fa-fw fa-industry" />&nbsp;{t("Generate")}</button>
                                     <ButtonGroup>
                                         <button title="View generated G-Code in a tab. Please disable popup blockers. Press [SHIFT] to avoid large file size confirmation and open in a new window." className="btn btn-info btn-xs" disabled={!valid || gcoding.enable} onClick={viewGcode}><i className="fa fa-eye" /></button>
                                         <button title="Export G-code to File. Press [SHIFT] to edit filename." className="btn btn-success btn-xs" disabled={!valid || gcoding.enable} onClick={saveGcode}><i className="fa fa-floppy-o" /></button>

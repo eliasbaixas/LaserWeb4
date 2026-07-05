@@ -34,6 +34,7 @@ import Quote from './quote'
 import Settings from './settings'
 import About from './about'
 import ConnectionStatus from './connection-status'
+import { t } from '../lib/i18n'
 
 import { AllowCapture } from './capture'
 import { DocumentCacheHolder } from './document-cache'
@@ -183,11 +184,11 @@ class LaserWeb extends React.Component {
                 <DocumentCacheHolder style={{ width: '100%' }} documents={this.props.documents}>
                     <div style={{ display: 'flex', flexDirection: 'row', height: '100%' }}>
                         <Sidebar ref="sidebar" style={{ flexGrow: 0, flexShrink: 0 }}>
-                            <Cam id="cam" title="Files" icon="pencil-square-o" />
-                            <Com id="com" title="Comms" icon="plug" />
-                            <Jog id="jog" title="Control" icon="arrows-alt" />
-                            <Settings id="settings" title="Settings" icon="cogs" />
-                            <About id="about" title="About" icon="question" />
+                            <Cam id="cam" title={t("Files")} icon="pencil-square-o" />
+                            <Com id="com" title={t("Comms")} icon="plug" />
+                            <Jog id="jog" title={t("Control")} icon="arrows-alt" />
+                            <Settings id="settings" title={t("Settings")} icon="cogs" />
+                            <About id="about" title={t("About")} icon="question" />
                         </Sidebar>
                         <WorkspaceSwitcher />
                         <ConnectionStatus />

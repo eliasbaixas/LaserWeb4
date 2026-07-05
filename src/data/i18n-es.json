@@ -20,5 +20,20 @@
     "Delete from the library": "Eliminar de la biblioteca",
     "Pick parts of this file": "Elegir partes de este fichero",
     "Add Document": "Añadir documento",
-    "Generate": "Generar"
+    "Generate": "Generar",
+    "Files": "Ficheros",
+    "Comms": "Conexión",
+    "Control": "Control",
+    "Settings": "Ajustes",
+    "About": "Acerca de",
+    "Workspace": "Espacio de trabajo",
+    "Documents": "Documentos",
+    "lines": "líneas",
+    " (stale)": " (desfasado)",
+    "no G-code": "sin G-code",
+    "Done": "Hecho",
+    "Changes apply instantly — regenerate the G-code when done.": "Los cambios aplican al instante — regenera el G-code al terminar.",
+    "This panel crashed.": "Este panel ha fallado.",
+    "The rest of the app keeps working.": "El resto de la aplicación sigue funcionando.",
+    "Try again": "Reintentar"
 }
