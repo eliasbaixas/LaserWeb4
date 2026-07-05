@@ -66,7 +66,7 @@ function AxisControl({ jogRef, axis, canMax, color }) {
     let axisLower = axis.toLowerCase();
 
     return <>
-        <div id={`r${axis}`} className="drolabel">{axis}:</div>
+        <div id={`r${axis}`} className="drolabel" title={`${axis} axis — work position in mm. The arrow opens probe / set zero / go-to-zero actions for this axis.`}>{axis}:</div>
         <div className="btn-group dropdown" style={{ marginLeft: -3 }}>
             <button id="" type="button" className="btn btn-sm btn-default" style={{ padding: 2, top: -3, backgroundColor: color }} data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                 <span className="fa-stack fa-1x">
@@ -86,7 +86,7 @@ function AxisControl({ jogRef, axis, canMax, color }) {
                 <DropdownAction id={`goto${axis}Zero`} icon="play" onClick={() => jogRef.gotoZero(axisLower)}>G0 to {axis}0</DropdownAction>
             </ul>
         </div>
-        <div id={`m${axis}`} className="droPos" style={{ marginRight: 0, backgroundColor: color }}>0.00</div><div className="droUnit" style={{ backgroundColor: color }}> mm</div>
+        <div id={`m${axis}`} className="droPos" title={`Current ${axis} work coordinate (mm), from the machine's status report — relative to the work zero you set`} style={{ marginRight: 0, backgroundColor: color }}>0.00</div><div className="droUnit" style={{ backgroundColor: color }}> mm</div>
         <br />
     </>;
 }
@@ -576,8 +576,8 @@ class Jog extends React.Component {
                             {machineAEnabled ? <AxisControl jogRef={this} axis="A" canMax={true} color="#fffbcf" /> : null}
 
                             <div id="overrides">
-                                <div className="drolabel">F:</div>
-                                <div id="oF" className="droOR">100<span className="drounitlabel"> %</span></div>
+                                <div className="drolabel" title="Feed override — scales the running job's movement speed in realtime (GRBL: 10–200%) without editing the G-code. Too slow / burning? Adjust here mid-job.">F:</div>
+                                <div id="oF" className="droOR" title="Current feed override level (100% = programmed speed)">100<span className="drounitlabel"> %</span></div>
                                 <div className="btn-group btn-override">
                                     <button id="rF" type="button" onClick={(e) => { this.resetF(e) }} className="btn btn-sm btn-default" style={{ padding: 2, top: -3 }} data-toggle="tooltip" data-placement="bottom" title="Click to Reset F-Override to 100%">
                                         <span className="fa-stack fa-1x">
@@ -596,8 +596,8 @@ class Jog extends React.Component {
                                     </button>
                                 </div>
                                 <br />
-                                <div className="drolabel">S:</div>
-                                <div id="oS" className="droOR">100<span className="drounitlabel"> %</span></div>
+                                <div className="drolabel" title="S (spindle/laser power) override — scales the programmed S value in realtime (GRBL: 10–200%). Lower it mid-job if the laser burns too deep.">S:</div>
+                                <div id="oS" className="droOR" title="Current power override level (100% = programmed S value)">100<span className="drounitlabel"> %</span></div>
                                 <div className="btn-group btn-override">
                                     <button id="rS" type="button" onClick={(e) => { this.resetS(e) }} className="btn btn-sm btn-default" style={{ padding: 2, top: -3 }} data-toggle="tooltip" data-placement="bottom" title="Click to Reset S-Override to 100%">
                                         <span className="fa-stack fa-1x">
