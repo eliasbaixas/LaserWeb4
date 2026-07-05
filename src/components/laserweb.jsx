@@ -8,6 +8,7 @@
 // Styles/Fonts
 import 'bootstrap'
 import 'bootstrap/dist/css/bootstrap.min.css'
+import '../styles/theme2.css'
 import 'font-awesome/css/font-awesome.min.css'
 import 'react-select/dist/react-select.css';
 import '../styles/index.css'
