@@ -578,7 +578,7 @@ class Jog extends React.Component {
                             <div id="overrides">
                                 <div className="drolabel" title="Feed override — scales the running job's movement speed in realtime (GRBL: 10–200%) without editing the G-code. Too slow / burning? Adjust here mid-job.">F:</div>
                                 <input id="oF" type="number" className="droOR" defaultValue="100" min="10" max="200" step="1"
-                                    style={{ width: 62 }}
+                                    style={{ width: 'calc(100% - 125px)', minWidth: 70 }}
                                     title="Feed override %: type a value between 10 and 200 and press Enter"
                                     onKeyDown={(e) => { if (e.key === 'Enter') { feedOverrideTo(e.target.value); e.target.blur(); } }}
                                     onBlur={(e) => feedOverrideTo(e.target.value)} />
@@ -593,7 +593,7 @@ class Jog extends React.Component {
                                 <br />
                                 <div className="drolabel" title="S (spindle/laser power) override — scales the programmed S value in realtime (GRBL: 10–200%). Lower it mid-job if the laser burns too deep.">S:</div>
                                 <input id="oS" type="number" className="droOR" defaultValue="100" min="10" max="200" step="1"
-                                    style={{ width: 62 }}
+                                    style={{ width: 'calc(100% - 125px)', minWidth: 70 }}
                                     title="Power override %: type a value between 10 and 200 and press Enter"
                                     onKeyDown={(e) => { if (e.key === 'Enter') { spindleOverrideTo(e.target.value); e.target.blur(); } }}
                                     onBlur={(e) => spindleOverrideTo(e.target.value)} />
