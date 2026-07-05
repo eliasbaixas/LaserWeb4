@@ -18,7 +18,10 @@ import ReactDOM from 'react-dom'
 import { connect } from 'react-redux';
 
 import Subtree from './subtree';
-import { removeDocument, selectDocument, toggleSelectDocument, toggleVisibleDocument } from '../actions/document';
+import { cloneDocumentSelected, removeDocument, selectDocument, toggleSelectDocument, toggleVisibleDocument } from '../actions/document';
+import { GlobalStore } from '../index';
+import { computeAttachedIds } from './workspace2';
+import { confirm } from './laserweb';
 import { addOperation, operationAddDocuments } from '../actions/operation';
 import { documents } from '../reducers/document';
 import Pointable from '../lib/Pointable';
@@ -85,17 +88,50 @@ class DocumentLabel extends React.Component {
             this.forceUpdate();
     }
 
-    drag(clientX, clientY) {
+    drag(clientX, clientY, altKey) {
         let elem = document.elementFromPoint(clientX, clientY);
         while (elem && !elem.dataset.operationId)
             elem = elem.parentElement;
-        if (elem) {
-            let documents = this.props.documents.filter(d => isSelected(this.props.documents, d)).map(d => d.id);
+        if (!elem)
+            return;
+        let documents = this.props.documents.filter(d => isSelected(this.props.documents, d)).map(d => d.id);
+
+        let finish = (docIds) => {
             if (elem.dataset.operationId === 'new')
-                this.props.dispatch(addOperation({ documents }));
+                this.props.dispatch(addOperation({ documents: docIds }));
             else
-                this.props.dispatch(operationAddDocuments(elem.dataset.operationId, elem.dataset.operationTabs, documents));
-        }
+                this.props.dispatch(operationAddDocuments(elem.dataset.operationId, elem.dataset.operationTabs, docIds));
+        };
+
+        // CAM model checkpoint: dropping a document that another operation
+        // already uses is legitimate (two treatments on the same object),
+        // but often the user wants an independent copy. Ask — or clone
+        // silently with Alt held.
+        let state = GlobalStore().getState();
+        let attached = computeAttachedIds(state.documents, state.operations);
+        let alreadyUsed = documents.some(id => attached.has(id));
+        if (!alreadyUsed)
+            return finish(documents);
+
+        let cloneAndFinish = () => {
+            let before = new Set(GlobalStore().getState().documents.map(d => d.id));
+            this.props.dispatch(cloneDocumentSelected());
+            let after = GlobalStore().getState().documents;
+            let newDocs = after.filter(d => !before.has(d.id));
+            let newIds = new Set(newDocs.map(d => d.id));
+            let cloneRoots = newDocs.filter(d =>
+                !newDocs.some(p => p.children && p.children.includes(d.id)));
+            finish(cloneRoots.map(d => d.id));
+        };
+
+        if (altKey)
+            return cloneAndFinish();
+        confirm(
+            'This document is already used by another operation.<br/><br/>' +
+            '<b>OK</b>: add an independent <b>clone</b> (its own copy, move it freely).<br/>' +
+            '<b>Cancel</b>: <b>reference</b> the same object again (a second treatment on the same piece, e.g. engrave + cut).<br/><br/>' +
+            '<small>Tip: drop with <kbd>Alt</kbd> held to clone without asking.</small>',
+            (ok) => { if (ok) cloneAndFinish(); else finish(documents); });
     }
 
     onPointerUp(e) {
@@ -103,7 +139,7 @@ class DocumentLabel extends React.Component {
             return;
         e.preventDefault();
         if (this.dragStarted) {
-            this.drag(e.clientX, e.clientY);
+            this.drag(e.clientX, e.clientY, e.altKey);
             this.dragStarted = false;
         } else if (this.needToSelect) {
             if (this.isToggle)

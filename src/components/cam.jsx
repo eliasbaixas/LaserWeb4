@@ -131,18 +131,18 @@ export function Cam() {
     let saveGcode = useCallback((e) => {
         prompt('Save as', strftime(settings.gcodeFilename), (file) => {
             if (file !== null) {
-                sendAsFile(appendExt(file, settings.gcodeExtension), gcode.content);
+                sendAsFile(appendExt(file, settings.gcodeExtension), gcode);
             }
         }, !e.shiftKey)
     }, [ settings, gcode ]);
 
     let viewGcode = useCallback((e) => {
-        if (gcode.content.length < 1048576) {
-            openDataWindow(gcode.content);
+        if (gcode.length < 1048576) {
+            openDataWindow(gcode);
         } else {
-            confirm("Size: " + humanFileSize(gcode.content.length) + ", viewing very large files can negatively affect browser performance. Are you sure?", (accepted) => {
+            confirm("Size: " + humanFileSize(gcode.length) + ", viewing very large files can negatively affect browser performance. Are you sure?", (accepted) => {
                 if (accepted) {
-                    openDataWindow(gcode.content);
+                    openDataWindow(gcode);
                 }
             }, e.shiftKey)
         }
@@ -370,7 +370,7 @@ export function Cam() {
                                             <button title="Load G-Code from File" className="btn btn-danger btn-xs" disabled={!valid || gcoding.enable} ><i className="fa fa-folder-open" /></button>
                                         </FileField>
                                     </ButtonGroup>
-                                    <button title="Clear Current Gcode. Press [SHIFT] to avoid confirmation." className="btn btn-warning btn-xs" disabled={!valid || gcoding.enable} onClick={clearGcode}><i className="fa fa-trash" /></button>
+                                    <button title="Clear Current Gcode. Press [SHIFT] to avoid confirmation." className="btn btn-warning btn-xs" disabled={!gcode || gcoding.enable} onClick={clearGcode}><i className="fa fa-trash" /></button>
                                 </ButtonToolbar>) : <GcodeProgress onStop={(e) => stopGcode(e)} />}</td>
                         </tr>
                     </tbody>

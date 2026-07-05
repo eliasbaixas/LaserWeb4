@@ -484,18 +484,28 @@ export function Workspace2({ style }) {
                 {chip('added', '#22262c', 'in operations', 'Documents attached to an operation: this is what will actually cut')}
                 {chip('gcode', '#ffa94d', 'G-code', 'Generated toolpath preview: grey rapids, amber cutting moves')}
             </div>
-            {selectedDocs.length > 0 &&
-                <div style={{
-                    position: 'absolute', left: 10, bottom: 10, zIndex: 2,
-                    padding: '4px 10px', borderRadius: 12, fontSize: 12,
-                    background: 'rgba(31,111,208,.92)', color: '#fff',
-                    boxShadow: '0 1px 4px rgba(0,0,0,.3)', pointerEvents: 'none',
-                }}>
-                    {selectedDocs.length === 1
-                        ? (selectedDocs[0].name || 'object')
-                        : `${selectedDocs.length} objects`}
-                    <span style={{ opacity: 0.75 }}> — ⌫ delete</span>
-                </div>}
+            {selectedDocs.length > 0 && (() => {
+                const single = selectedDocs.length === 1 ? selectedDocs[0] : null
+                const opsUsing = single
+                    ? operations.filter(op => computeAttachedIds(documents, [op]).has(single.id)).length
+                    : null
+                const orphan = single && opsUsing === 0
+                return (
+                    <div style={{
+                        position: 'absolute', left: 10, bottom: 10, zIndex: 2,
+                        padding: '4px 10px', borderRadius: 12, fontSize: 12,
+                        background: orphan ? 'rgba(190,120,20,.95)' : 'rgba(31,111,208,.92)',
+                        color: '#fff',
+                        boxShadow: '0 1px 4px rgba(0,0,0,.3)', pointerEvents: 'none',
+                    }}>
+                        {single ? (single.name || 'object') : `${selectedDocs.length} objects`}
+                        {single && (orphan
+                            ? <span> — not in any operation: it will NOT cut</span>
+                            : <span style={{ opacity: 0.85 }}> — in {opsUsing} operation{opsUsing > 1 ? 's' : ''}</span>)}
+                        <span style={{ opacity: 0.75 }}> · ⌫ delete</span>
+                    </div>
+                )
+            })()}
         </div>
     )
 }

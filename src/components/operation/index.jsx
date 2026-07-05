@@ -214,7 +214,8 @@ class Operation extends React.Component {
         let rows = [
             <GetBounds Type="div" key="header" style={{ display: 'table-row' }} data-operation-id={op.id}>
                 <div style={leftStyle} />
-                <div style={{ display: 'table-cell', cursor: 'pointer' }}>
+                <div style={{ display: 'table-cell', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                    <span className="badge" title="Execution order: operations run top to bottom. Rule of thumb: engrave first, cut last (a cut piece can shift).">{this.props.index}</span>
                     <i onClick={this.toggleExpanded}
                         className={op.expanded ? 'fa fa-fw fa-minus-circle' : 'fa fa-fw fa-plus-circle'} />
                 </div>
@@ -420,9 +421,9 @@ export function Operations({ style }) {
             </div>
             <OperationToolbar />
             <div ref={operationsBoundsRef} className="operations" style={{ height: "100%", overflowY: "auto" }} >
-                {operations.map(o =>
+                {operations.map((o, i) =>
                     <Operation
-                        key={o.id} op={o} selected={currentOperation === o.id} documents={documents}
+                        key={o.id} op={o} index={i + 1} selected={currentOperation === o.id} documents={documents}
                         fillColors={fillColors} strokeColors={strokeColors} settings={settings}
                         dispatch={dispatch} bounds={operationsBounds} />
                 )}
