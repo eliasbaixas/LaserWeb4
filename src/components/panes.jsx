@@ -8,6 +8,8 @@
 import React from 'react'
 import { connect } from 'react-redux'
 
+import ErrorBoundary from './error-boundary'
+
 /**
  * Pane component.
  *
@@ -32,7 +34,7 @@ class Pane extends React.Component {
     render() {
         return (
             <div className={ "pane" + (this.props.active ? " active" : "") + " pane-"+this.props.id}>
-                <div className="pane-content">{ this.props.children }</div>
+                <div className="pane-content"><ErrorBoundary label={this.props.id}>{ this.props.children }</ErrorBoundary></div>
             </div>
         )
     }

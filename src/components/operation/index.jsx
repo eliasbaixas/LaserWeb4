@@ -43,6 +43,9 @@ import { Field } from './field';
 export { OPERATION_FIELDS, OPERATION_GROUPS, OPERATION_TYPES };
 
 export function Error({ bounds, operationsBounds, message }) {
+    // Bounds arrive one frame late (measured via ref callbacks / GetBounds);
+    // rendering blind against undefined crashed the whole app.
+    if (!bounds || !operationsBounds) return null;
     return (
         <div className="error-bubble-clip" style={{ left: operationsBounds.right, top: operationsBounds.top /*top: 0*/, bottom: 0 }}>
             <div style={{ height: operationsBounds.bottom - operationsBounds.top }}>
