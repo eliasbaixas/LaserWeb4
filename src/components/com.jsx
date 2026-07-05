@@ -17,8 +17,15 @@ import Icon from './font-awesome';
 
 import io from 'socket.io-client';
 var socket, connectVia, connectReset;
-var serverConnected = false;
-var machineConnected = false;
+var serverConnected = false; syncConnState();
+var machineConnected = false; syncConnState();
+
+// Mirror the module-level connection flags into redux so any component
+// (Test pane, the floating connection status, ...) can react to them.
+var dispatchRef = null;
+function syncConnState() {
+    if (dispatchRef) dispatchRef(setComAttrs({ serverConnected, machineConnected }));
+}
 var jobLines = 0;
 var jobStartTime = -1;
 var accumulatedJobTime = 0;
@@ -86,6 +93,7 @@ class Com extends React.Component {
     handleConnectServer() {
         let that = this;
         let {settings, dispatch} = this.props;
+        dispatchRef = dispatch; syncConnState();
         let server = settings.comServerIP;
         let protocol = settings.comServerSecure ? 'wss:' : 'ws:';
         CommandHistory.write('Connecting to Server @ ' + server, CommandHistory.INFO);
@@ -93,7 +101,7 @@ class Com extends React.Component {
         socket = io(protocol + '//' + server);
 
         socket.on('connect', function(data) {
-            serverConnected = true;
+            serverConnected = true; syncConnState();
             $('#connectS').addClass('disabled');
             $('#disconnectS').removeClass('disabled');
             //socket.emit('firstLoad');
@@ -104,10 +112,10 @@ class Com extends React.Component {
         socket.on('disconnect', function() {
             CommandHistory.error('Disconnected from Server ' + settings.comServerIP)
             //console.log('Disconnected from Server ' + settings.commServerIP);
-            serverConnected = false;
+            serverConnected = false; syncConnState();
             $('#connectS').removeClass('disabled');
             $('#disconnectS').addClass('disabled');
-            machineConnected = false;
+            machineConnected = false; syncConnState();
             $('#connect').removeClass('disabled');
             $('#disconnect').addClass('disabled');
             firmware = '';
@@ -116,7 +124,7 @@ class Com extends React.Component {
         });
 
 //        socket.on('open', function(data) {
-//            serverConnected = true;
+//            serverConnected = true; syncConnState();
 //            $('#connectS').addClass('disabled');
 //            $('#disconnectS').removeClass('disabled');
 //            // Web Socket is connected
@@ -127,7 +135,7 @@ class Com extends React.Component {
 //        });
 
         socket.on('serverConfig', function (data) {
-            serverConnected = true;
+            serverConnected = true; syncConnState();
             let serverVersion = data.serverVersion;
             let apiVersion = data.apiVersion;
             dispatch(setSettingsAttrs({comServerVersion: serverVersion}));
@@ -137,7 +145,7 @@ class Com extends React.Component {
         });
 
         socket.on('interfaces', function(data) {
-            serverConnected = true;
+            serverConnected = true; syncConnState();
             $('#connectS').addClass('disabled');
             $('#disconnectS').removeClass('disabled');
             if (data.length > 0) {
@@ -156,7 +164,7 @@ class Com extends React.Component {
         });
 
         socket.on('ports', function (data) {
-            serverConnected = true;
+            serverConnected = true; syncConnState();
             $('#connectS').addClass('disabled');
             $('#disconnectS').removeClass('disabled');
             if (data.length > 0) {
@@ -175,7 +183,7 @@ class Com extends React.Component {
         });
 
         socket.on('activeInterface', function (data) {
-            serverConnected = true;
+            serverConnected = true; syncConnState();
             $('#connectS').addClass('disabled');
             $('#disconnectS').removeClass('disabled');
             if (data.length > 0) {
@@ -185,7 +193,7 @@ class Com extends React.Component {
         });
 
         socket.on('activePort', function (data) {
-            serverConnected = true;
+            serverConnected = true; syncConnState();
             $('#connectS').addClass('disabled');
             $('#disconnectS').removeClass('disabled');
             if (data.length > 0) {
@@ -195,7 +203,7 @@ class Com extends React.Component {
         });
 
         socket.on('activeBaudRate', function (data) {
-            serverConnected = true;
+            serverConnected = true; syncConnState();
             $('#connectS').addClass('disabled');
             $('#disconnectS').removeClass('disabled');
             if (data.length > 0) {
@@ -205,7 +213,7 @@ class Com extends React.Component {
         });
 
         socket.on('activeIP', function (data) {
-            serverConnected = true;
+            serverConnected = true; syncConnState();
             $('#connectS').addClass('disabled');
             $('#disconnectS').removeClass('disabled');
             if (data.length > 0) {
@@ -216,17 +224,17 @@ class Com extends React.Component {
 
         socket.on('connectStatus', function (data) {
             console.log('connectStatus: ' + data);
-            serverConnected = true;
+            serverConnected = true; syncConnState();
             $('#connectS').addClass('disabled');
             $('#disconnectS').removeClass('disabled');
             if (data.indexOf('opened') >= 0) {
-                machineConnected = true;
+                machineConnected = true; syncConnState();
                 $('#connect').addClass('disabled');
                 $('#disconnect').removeClass('disabled');
                 CommandHistory.write('Machine connected', CommandHistory.SUCCESS);
             }
             if (data.indexOf('Connect') >= 0) {
-                machineConnected = false;
+                machineConnected = false; syncConnState();
                 $('#connect').removeClass('disabled');
                 $('#disconnect').addClass('disabled');
                 firmware = '';
@@ -238,10 +246,10 @@ class Com extends React.Component {
 
         socket.on('firmware', function (data) {
             console.log('firmware: ' + JSON.stringify(data));
-            serverConnected = true;
+            serverConnected = true; syncConnState();
             $('#connectS').addClass('disabled');
             $('#disconnectS').removeClass('disabled');
-            machineConnected = true;
+            machineConnected = true; syncConnState();
             $('#connect').addClass('disabled');
             $('#disconnect').removeClass('disabled');
             firmware = data.firmware;
@@ -252,7 +260,7 @@ class Com extends React.Component {
             if (firmware === 'grbl' && parseFloat(fVersion) < 1.1) {
                 CommandHistory.error('Grbl version too old -> YOU MUST INSTALL AT LEAST GRBL 1.1e')
                 socket.emit('closePort', 1);
-                machineConnected = false;
+                machineConnected = false; syncConnState();
                 //console.log('GRBL < 1.1 not supported!');
             }
         });
@@ -311,8 +319,8 @@ class Com extends React.Component {
         });
 
         socket.on('data', function (data) {
-            serverConnected = true;
-            machineConnected = true;
+            serverConnected = true; syncConnState();
+            machineConnected = true; syncConnState();
             if (data) {
                 if (data.indexOf('<') === 0) {
                     //CommandHistory.write('statusReport: ' + data);
@@ -332,8 +340,8 @@ class Com extends React.Component {
         });
 
         socket.on('wPos', function (wpos) {
-            serverConnected = true;
-            machineConnected = true;
+            serverConnected = true; syncConnState();
+            machineConnected = true; syncConnState();
             let {x, y, z, a} = wpos; //var pos = wpos.split(',');
             let posChanged = false;
             if (xpos !== x) {
@@ -364,8 +372,8 @@ class Com extends React.Component {
         });
 
         socket.on('wOffset', function (wOffset) {
-            serverConnected = true;
-            machineConnected = true;
+            serverConnected = true; syncConnState();
+            machineConnected = true; syncConnState();
             let {x, y, z, a} = wOffset;
                 x=Number(x)
                 y=Number(y)
@@ -397,7 +405,7 @@ class Com extends React.Component {
 
         // feed override report (from server)
         socket.on('feedOverride', function (data) {
-            serverConnected = true;
+            serverConnected = true; syncConnState();
             //CommandHistory.write('feedOverride: ' + data, CommandHistory.STD);
             //console.log('feedOverride ' + data);
             $('#oF').html(data.toString() + '<span class="drounitlabel"> %</span>');
@@ -405,7 +413,7 @@ class Com extends React.Component {
 
         // spindle override report (from server)
         socket.on('spindleOverride', function (data) {
-            serverConnected = true;
+            serverConnected = true; syncConnState();
             //CommandHistory.write('spindleOverride: ' + data, CommandHistory.STD);
             //console.log('spindleOverride ' + data);
             $('#oS').html(data.toString() + '<span class="drounitlabel"> %</span>');
@@ -413,7 +421,7 @@ class Com extends React.Component {
 
         // real feed report (from server)
         socket.on('realFeed', function (data) {
-            serverConnected = true;
+            serverConnected = true; syncConnState();
             //CommandHistory.write('realFeed: ' + data, CommandHistory.STD);
             //console.log('realFeed ' + data);
             //$('#mF').html(data);
@@ -421,7 +429,7 @@ class Com extends React.Component {
 
         // real spindle report (from server)
         socket.on('realSpindle', function (data) {
-            serverConnected = true;
+            serverConnected = true; syncConnState();
             //CommandHistory.write('realSpindle: ' + data, CommandHistory.STD);
             //console.log('realSpindle ' + data);
             //$('#mS').html(data);
@@ -429,7 +437,7 @@ class Com extends React.Component {
 
         // laserTest state
         socket.on('laserTest', function (data) {
-            serverConnected = true;
+            serverConnected = true; syncConnState();
             //CommandHistory.write('laserTest: ' + data, CommandHistory.STD);
             //console.log('laserTest ' + data);
             if (data > 0){
@@ -442,7 +450,7 @@ class Com extends React.Component {
         });
 
         socket.on('qCount', function (data) {
-            serverConnected = true;
+            serverConnected = true; syncConnState();
             $('#connect').addClass('disabled');
             $('#disconnect').removeClass('disabled');
             //console.log('qCount ' + data);
@@ -482,10 +490,10 @@ class Com extends React.Component {
         });
 
         socket.on('close', function() {
-            serverConnected = false;
+            serverConnected = false; syncConnState();
             $('#connectS').removeClass('disabled');
             $('#disconnectS').addClass('disabled');
-            machineConnected = false;
+            machineConnected = false; syncConnState();
             $('#connect').removeClass('disabled');
             $('#disconnect').addClass('disabled');
             CommandHistory.error('Server connection closed')
@@ -728,6 +736,40 @@ function updateStatus(data) {
     $('#machineStatus').html(state);
 }
 
+
+// Re-establish the websocket to the comm server (socket.io also retries on
+// its own). Returns false when the server was never connected this session.
+export function reconnectServer() {
+    if (!socket) return false;
+    if (!serverConnected) socket.connect();
+    return true;
+}
+
+// Reconnect the machine using the last known connection settings (they live
+// in redux settings and persist in localStorage, so they survive reloads).
+export function reconnectMachine(settings) {
+    if (!socket || !serverConnected) {
+        CommandHistory.error('Comm server not connected');
+        return false;
+    }
+    if (machineConnected) return true;
+    const { connectVia, connectPort, connectBaud, connectReset, connectIP } = settings;
+    switch (connectVia) {
+        case 'USB':
+            if (!connectPort || !connectBaud) break;
+            CommandHistory.write('Reconnecting machine via USB: ' + connectPort + ' @ ' + connectBaud + ' baud', CommandHistory.INFO);
+            socket.emit('connectTo', connectVia + ',' + connectPort.trim() + ',' + connectBaud + ',' + connectReset);
+            return true;
+        case 'Telnet':
+        case 'ESP8266':
+            if (!connectIP) break;
+            CommandHistory.write('Reconnecting machine via ' + connectVia + ': ' + connectIP, CommandHistory.INFO);
+            socket.emit('connectTo', connectVia + ',' + connectIP + ',null,' + connectReset);
+            return true;
+    }
+    CommandHistory.error('No stored machine connection settings — connect once from the Comms pane');
+    return false;
+}
 
 export function runCommand(gcode) {
     if (serverConnected) {

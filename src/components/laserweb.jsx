@@ -30,6 +30,7 @@ import Quote from './quote'
 import Settings from './settings'
 import About from './about'
 import TestPane from './test-pane'
+import ConnectionStatus from './connection-status'
 
 import { AllowCapture } from './capture'
 import { DocumentCacheHolder } from './document-cache'
@@ -187,6 +188,7 @@ class LaserWeb extends React.Component {
                             <About id="about" title="About" icon="question" />
                         </Sidebar>
                         <Workspace style={{ flexGrow: 1, position: "relative" }} />
+                        <ConnectionStatus />
                     </div>
                 </DocumentCacheHolder>
             </AllowCapture>
