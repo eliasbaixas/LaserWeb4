@@ -127,10 +127,10 @@ class DocumentLabel extends React.Component {
         if (altKey)
             return cloneAndFinish();
         confirm(
-            'This document is already used by another operation.<br/><br/>' +
-            '<b>OK</b>: add an independent <b>clone</b> (its own copy, move it freely).<br/>' +
-            '<b>Cancel</b>: <b>reference</b> the same object again (a second treatment on the same piece, e.g. engrave + cut).<br/><br/>' +
-            '<small>Tip: drop with <kbd>Alt</kbd> held to clone without asking.</small>',
+            'This document is already used by another operation. ' +
+            'OK = add an independent CLONE (its own copy, move it freely). ' +
+            'Cancel = REFERENCE the same object again (a second treatment on the same piece, e.g. engrave + cut). ' +
+            'Tip: drop with Alt held to clone without asking.',
             (ok) => { if (ok) cloneAndFinish(); else finish(documents); });
     }
 
