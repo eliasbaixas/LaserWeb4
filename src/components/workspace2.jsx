@@ -90,17 +90,38 @@ function tapToSelect(obj, docId) {
     })
 }
 
-function drawDocuments(container, documents) {
+// Documents referenced by any operation (including their whole subtree):
+// these are the ones that will actually produce G-code.
+export function computeAttachedIds(documents, operations) {
+    const byId = new Map(documents.map(d => [d.id, d]))
+    const attached = new Set()
+    const mark = (id) => {
+        if (attached.has(id)) return
+        attached.add(id)
+        const d = byId.get(id)
+        if (d && d.children) for (const c of d.children) mark(c)
+    }
+    for (const op of operations)
+        for (const id of (op.documents || [])) mark(id)
+    return attached
+}
+
+function drawDocuments(container, documents, attachedIds, layers) {
     container.removeChildren().forEach(c => c.destroy())
     for (const doc of documents) {
         if (doc.visible === false) continue
+        const attached = attachedIds.has(doc.id)
+        if (attached && !layers.added) continue
+        if (!attached && !layers.loaded) continue
+        // loaded-but-unattached documents render dimmed: they will not cut
+        const layerAlpha = attached ? 1 : 0.4
         // raster documents: a sprite placed by its transform2d matrix, which
         // maps image pixels (y-down) to workspace mm (y-up)
         if (doc.dataURL && doc.transform2d) {
             const sprite = new Sprite()
             const t = doc.transform2d
             sprite.setFromMatrix(new Matrix(...t))
-            sprite.alpha = doc.selected ? 0.75 : 1
+            sprite.alpha = (doc.selected ? 0.75 : 1) * layerAlpha
             Assets.load(doc.dataURL)
                 .then(tex => {
                     if (sprite.destroyed) return
@@ -126,7 +147,7 @@ function drawDocuments(container, documents) {
             if (p.length < 4) continue
             g.moveTo(p[0], p[1])
             for (let i = 2; i < p.length; i += 2) g.lineTo(p[i], p[i + 1])
-            g.stroke({ width: 1, color, pixelLine: true })
+            g.stroke({ width: 1, color, alpha: layerAlpha, pixelLine: true })
             for (let i = 0; i < p.length; i += 2) {
                 if (p[i] < x1) x1 = p[i]
                 if (p[i] > x2) x2 = p[i]
@@ -212,9 +233,23 @@ export function Workspace2({ style }) {
     const [ready, setReady] = useState(0)
 
     const documents = useSelector(s => s.documents)
+    const operations = useSelector(s => s.operations)
     const gcode = useSelector(s => s.gcode.content)
     const machineWidth = useSelector(s => Number(s.settings.machineWidth) || 300)
     const machineHeight = useSelector(s => Number(s.settings.machineHeight) || 200)
+
+    const [layers, setLayers] = useState(() => {
+        try {
+            return { loaded: true, added: true, gcode: true, ...JSON.parse(window.localStorage.getItem('LaserWeb.ws2.layers')) }
+        } catch (e) {
+            return { loaded: true, added: true, gcode: true }
+        }
+    })
+    const toggleLayer = (key) => {
+        const next = { ...layers, [key]: !layers[key] }
+        window.localStorage.setItem('LaserWeb.ws2.layers', JSON.stringify(next))
+        setLayers(next)
+    }
 
     // one-time init / teardown
     useEffect(() => {
@@ -295,19 +330,20 @@ export function Workspace2({ style }) {
         p.viewport.worldHeight = machineHeight
     }, [ready, machineWidth, machineHeight])
 
-    // documents re-render on any document change
+    // documents re-render on any document/operation/layer change
     useEffect(() => {
         const p = pixiRef.current
         if (!p) return
-        drawDocuments(p.docsC, documents)
-    }, [ready, documents])
+        drawDocuments(p.docsC, documents, computeAttachedIds(documents, operations), layers)
+    }, [ready, documents, operations, layers])
 
     // G-code toolpath preview: grey = rapids, amber = cutting moves
     useEffect(() => {
         const p = pixiRef.current
         if (!p) return
+        p.gcodeG.visible = layers.gcode
         drawGcode(p.gcodeG, gcode)
-    }, [ready, gcode])
+    }, [ready, gcode, layers])
 
     // Backspace / Delete removes the selected documents (unless typing)
     useEffect(() => {
@@ -325,10 +361,33 @@ export function Workspace2({ style }) {
 
     const selectedDocs = documents.filter(d => d.selected)
 
+    const chip = (key, color, label, title) => (
+        <button key={key} onClick={() => toggleLayer(key)} title={title}
+            style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                padding: '3px 10px', borderRadius: 12, fontSize: 12,
+                border: '1px solid #c6ccd8', cursor: 'pointer',
+                background: layers[key] ? '#fff' : '#e8eaef',
+                color: layers[key] ? '#22262c' : '#9aa1ad',
+                textDecoration: layers[key] ? 'none' : 'line-through',
+            }}>
+            <span style={{
+                width: 10, height: 10, borderRadius: 5, background: color,
+                opacity: layers[key] ? 1 : 0.35,
+            }} />
+            {label}
+        </button>
+    )
+
     return (
         <div style={{ ...style, overflow: 'hidden' }}>
             <div ref={holderRef} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
                 title="Workspace 2.0 (PixiJS prototype) — drag to pan, wheel to zoom, click to select" />
+            <div style={{ position: 'absolute', top: 10, left: 10, zIndex: 2, display: 'flex', gap: 6 }}>
+                {chip('loaded', '#9aa1ad', 'loaded', 'Documents not attached to any operation (dimmed): they will NOT produce G-code')}
+                {chip('added', '#22262c', 'in operations', 'Documents attached to an operation: this is what will actually cut')}
+                {chip('gcode', '#ffa94d', 'G-code', 'Generated toolpath preview: grey rapids, amber cutting moves')}
+            </div>
             {selectedDocs.length > 0 &&
                 <div style={{
                     position: 'absolute', left: 10, bottom: 10, zIndex: 2,
