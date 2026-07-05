@@ -19,6 +19,7 @@ import { Viewport } from 'pixi-viewport'
 
 import { GlobalStore } from '../index'
 import { selectDocument, toggleSelectDocument, selectDocuments, removeDocumentSelected, transform2dSelectedDocuments } from '../actions/document'
+import { t } from '../lib/i18n'
 
 const COLORS = {
     background: 0xeef0f4,
@@ -480,9 +481,9 @@ export function Workspace2({ style }) {
             <div ref={holderRef} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
                 title="Workspace 2.0 (PixiJS prototype) — drag to pan, wheel to zoom, click to select" />
             <div style={{ position: 'absolute', top: 10, left: 10, zIndex: 2, display: 'flex', gap: 6 }}>
-                {chip('loaded', '#9aa1ad', 'loaded', 'Documents not attached to any operation (dimmed): they will NOT produce G-code')}
-                {chip('added', '#22262c', 'in operations', 'Documents attached to an operation: this is what will actually cut')}
-                {chip('gcode', '#ffa94d', 'G-code', 'Generated toolpath preview: grey rapids, amber cutting moves')}
+                {chip('loaded', '#9aa1ad', t('loaded'), 'Documents not attached to any operation (dimmed): they will NOT produce G-code')}
+                {chip('added', '#22262c', t('in operations'), 'Documents attached to an operation: this is what will actually cut')}
+                {chip('gcode', '#ffa94d', t('G-code'), 'Generated toolpath preview: grey rapids, amber cutting moves')}
             </div>
             {selectedDocs.length > 0 && (() => {
                 const single = selectedDocs.length === 1 ? selectedDocs[0] : null
@@ -498,11 +499,11 @@ export function Workspace2({ style }) {
                         color: '#fff',
                         boxShadow: '0 1px 4px rgba(0,0,0,.3)', pointerEvents: 'none',
                     }}>
-                        {single ? (single.name || 'object') : `${selectedDocs.length} objects`}
+                        {single ? (single.name || t('object')) : `${selectedDocs.length} ${t('objects')}`}
                         {single && (orphan
-                            ? <span> — not in any operation: it will NOT cut</span>
+                            ? <span>{t(' — not in any operation: it will NOT cut')}</span>
                             : <span style={{ opacity: 0.85 }}> — in {opsUsing} operation{opsUsing > 1 ? 's' : ''}</span>)}
-                        <span style={{ opacity: 0.75 }}> · ⌫ delete</span>
+                        <span style={{ opacity: 0.75 }}>{t(' · ⌫ delete')}</span>
                     </div>
                 )
             })()}

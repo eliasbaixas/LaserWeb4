@@ -9,6 +9,7 @@ import React, { useState } from 'react'
 
 import Workspace from './workspace'
 import Workspace2 from './workspace2'
+import { t, getLocale, setLocale, LOCALES } from '../lib/i18n'
 
 const KEY = 'LaserWeb.workspace2'
 
@@ -34,7 +35,17 @@ export default function WorkspaceSwitcher() {
                     background: v2 ? '#4da3ff' : 'rgba(20,23,28,.75)',
                     color: v2 ? '#0b1220' : '#4da3ff',
                 }}>
-                {v2 ? '⬅ classic' : 'canvas 2.0'}
+                {v2 ? t('⬅ classic') : t('canvas 2.0')}
+            </button>
+            <button onClick={() => setLocale(LOCALES[(LOCALES.indexOf(getLocale()) + 1) % LOCALES.length])}
+                title="Switch UI language / Cambiar idioma"
+                style={{
+                    position: 'absolute', top: 10, right: 110, zIndex: 6,
+                    padding: '3px 10px', borderRadius: 12, fontSize: 12,
+                    border: '1px solid #4da3ff55', cursor: 'pointer',
+                    background: 'rgba(20,23,28,.75)', color: '#4da3ff',
+                }}>
+                🌐 {getLocale().toUpperCase()}
             </button>
         </div>
     )

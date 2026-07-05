@@ -11,6 +11,7 @@ import React, { useState } from 'react'
 import { useSelector } from 'react-redux'
 
 import Icon from './font-awesome'
+import { t } from '../lib/i18n'
 
 function GuideCard({ storageKey, bsStyle, icon, title, children }) {
     const key = `LaserWeb.camGuide.${storageKey}`
@@ -82,7 +83,7 @@ export function CamGuide() {
 
     return (
         <div>
-            <GuideCard storageKey="concepts" bsStyle="primary" icon="graduation-cap" title="New here? The basics">
+            <GuideCard storageKey="concepts" bsStyle="primary" icon="graduation-cap" title={t("New here? The basics")}>
                 <Term icon="th" name="Workspace">
                     the virtual bed of your machine, drawn to real size on the right
                     (the grid). Documents, generated toolpaths and the live position
@@ -103,7 +104,7 @@ export function CamGuide() {
                 </Term>
             </GuideCard>
 
-            <GuideCard storageKey="flow" bsStyle="success" icon="road" title="The workflow, phase by phase">
+            <GuideCard storageKey="flow" bsStyle="success" icon="road" title={t("The workflow, phase by phase")}>
                 <Phase n="1" title="Raster or vector?">
                     <p style={{ marginBottom: 4 }}>
                         Look at your source file — it decides the branch:

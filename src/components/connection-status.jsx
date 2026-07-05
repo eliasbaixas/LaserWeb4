@@ -12,6 +12,7 @@ import { useSelector, useDispatch } from 'react-redux'
 import Icon from './font-awesome'
 import { reconnectServer, reconnectMachine } from './com'
 import { selectPane } from '../actions/panes'
+import { t } from '../lib/i18n'
 
 const STATES = {
     machine: { color: '#3c763d', bg: '#dff0d8', border: '#d6e9c6', icon: 'plug' },
@@ -41,13 +42,13 @@ export function ConnectionStatus() {
 
     const running = machineConnected && queued > 0
     const machineLabel =
-        (machineStatus ? `${machineStatus}` : 'connected') +
-        (running ? ` · ${jobPercent !== null && jobPercent !== undefined ? jobPercent + '% sent, ' : ''}${queued} queued` : '')
+        (machineStatus ? `${machineStatus}` : t('connected')) +
+        (running ? ` · ${jobPercent !== null && jobPercent !== undefined ? jobPercent + '% sent, ' : ''}${queued} ${t('queued')}` : '')
     const label = {
         machine: machineLabel,
-        alarm: 'ALARM — home or unlock',
-        server: 'machine disconnected',
-        none: 'server disconnected',
+        alarm: t('ALARM — home or unlock'),
+        server: t('machine disconnected'),
+        none: t('server disconnected'),
     }[state]
 
     const title = {
