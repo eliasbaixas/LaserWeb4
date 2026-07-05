@@ -226,8 +226,12 @@ class Operation extends React.Component {
 
                         <div style={{ whiteSpace: 'nowrap' }}>
                             <select className="input-xs" value={op.type} onChange={this.setType}>{Object.keys(OPERATION_TYPES).map(type => <option key={type} disabled={!this.availableOps.includes(type)}>{type}</option>)}</select>
-                            <MaterialPickerButton className="btn btn-success btn-xs" onApplyPreset={this.preset} operation={op} types={this.availableOps}><i className="fa fa-magic"></i></MaterialPickerButton>
-                            <MaterialSaveButton className="btn btn-success btn-xs" onApplyPreset={this.preset} operation={op} types={this.availableOps}><i className="fa fa-floppy-o"></i></MaterialSaveButton>
+                            <span title="Material library — APPLY a saved preset: pick your material (cardboard, EVA foam, plywood...) and this operation gets its proven speed/power/passes. Manage the library in Settings ⇒ Launch Material Database.">
+                                <MaterialPickerButton className="btn btn-success btn-xs" onApplyPreset={this.preset} operation={op} types={this.availableOps}><i className="fa fa-magic"></i></MaterialPickerButton>
+                            </span>
+                            <span title="Material library — SAVE these settings as a preset: found values that cut this material well? Store them under the material's name (e.g. 'cereal cardboard — cut') and reuse them any day via the magic wand.">
+                                <MaterialSaveButton className="btn btn-success btn-xs" onApplyPreset={this.preset} operation={op} types={this.availableOps}><i className="fa fa-floppy-o"></i></MaterialSaveButton>
+                            </span>
                         </div>
                         <div className="btn-group">
                             <button className={"btn btn-warning btn-xs " + (op.enabled ? '' : 'btn-off')} onClick={this.toggleEnabled} title="Enable/Disable operation"><i className="fa fa-power-off"></i></button>
