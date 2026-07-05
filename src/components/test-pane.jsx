@@ -10,14 +10,31 @@
  */
 
 import React, { useState } from 'react'
-import { useSelector } from 'react-redux'
+import { useSelector, useDispatch } from 'react-redux'
 import { Button, ButtonGroup, Alert } from 'react-bootstrap'
 
 import Icon from './font-awesome'
 import { runJob, runCommand } from './com'
+import { loadSVG } from './cam'
+import { loadDocument } from '../actions/document'
 import CommandHistory from './command-history'
 
 export const TEST_POWERS = [10, 20, 40, 50, 75, 100]
+
+// Minimal SVG for a basic shape, with physical (mm) sizing so the parser
+// places it at true scale on the workspace.
+export function shapeSvg(shape, size) {
+    const s = Number(size)
+    const h = +(s * 0.866).toFixed(3)
+    const body = {
+        square: `<rect x="0" y="0" width="${s}" height="${s}"/>`,
+        triangle: `<polygon points="0,${h} ${s},${h} ${s / 2},0"/>`,
+        circle: `<circle cx="${s / 2}" cy="${s / 2}" r="${s / 2}"/>`,
+    }[shape]
+    const height = shape === 'triangle' ? h : s
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="${s}mm" height="${height}mm" viewBox="0 0 ${s} ${height}">`
+        + `<g fill="none" stroke="#000000" stroke-width="0.1">${body}</g></svg>`
+}
 
 const SHAPES = {
     square: { label: 'Square', icon: 'square-o' },
@@ -72,6 +89,7 @@ export function testJobGcode({ shape, size, feed, sMax, powers }) {
 }
 
 export function TestPane() {
+    const dispatch = useDispatch()
     const machineConnected = useSelector(s => s.com.machineConnected)
     const sMax = useSelector(s => Number(s.settings.gcodeSMaxValue) || 1000)
 
@@ -87,6 +105,17 @@ export function TestPane() {
         const gcode = testJobGcode({ shape, size: Number(size), feed: Number(feed), sMax, powers })
         CommandHistory.write(`Test: ${shape} ${size}mm, powers ${powers.join('/')}% (F${feed})`, CommandHistory.INFO)
         runJob(gcode)
+    }
+
+    // Injects the shape into the normal document pipeline, exactly as if an
+    // SVG file of that size had been imported with Add Document.
+    const addToWorkspace = async () => {
+        const svg = shapeSvg(shape, size)
+        const file = new File([svg], `test-${shape}-${size}mm.svg`, { type: 'image/svg+xml' })
+        const result = await loadSVG(file)
+        if (!result) return
+        dispatch(loadDocument(file, result, {}))
+        CommandHistory.write(`Added ${shape} (${size}mm) to the workspace — see it in Files`, CommandHistory.INFO)
     }
 
     return (
@@ -116,6 +145,13 @@ export function TestPane() {
                         <input type="number" min="1" max="6000" step="50" value={feed} style={{ width: 70 }}
                             onChange={e => setFeed(e.target.value)} />
                     </label>
+                </div>
+
+                <div style={{ marginTop: 8 }}>
+                    <Button bsStyle="success" bsSize="small" onClick={addToWorkspace}
+                        title="Add this shape to the workspace as an SVG document: move/resize it, drag it onto an operation and run the normal pipeline">
+                        <Icon name="plus" /> Add to workspace as document
+                    </Button>
                 </div>
 
                 <label style={{ display: 'block', marginTop: 8 }}>

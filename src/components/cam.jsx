@@ -292,7 +292,7 @@ async function readWithReader(file, method) {
     });
 }
 
-async function loadSVG(file) {
+export async function loadSVG(file) {
     let contents = await readWithReader(file, "readAsText");
 
     const release = captureConsole(); // TODO: Why is this necessary?
