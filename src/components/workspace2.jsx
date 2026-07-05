@@ -77,10 +77,20 @@ function drawDocuments(container, documents) {
         // maps image pixels (y-down) to workspace mm (y-up)
         if (doc.dataURL && doc.transform2d) {
             const sprite = new Sprite()
-            sprite.setFromMatrix(new Matrix(...doc.transform2d))
+            const t = doc.transform2d
+            sprite.setFromMatrix(new Matrix(...t))
             sprite.alpha = doc.selected ? 0.75 : 1
             Assets.load(doc.dataURL)
-                .then(tex => { if (!sprite.destroyed) sprite.texture = tex })
+                .then(tex => {
+                    if (sprite.destroyed) return
+                    sprite.texture = tex
+                    // Plain image documents (positive d) map pixel-y straight to
+                    // mm-y; the legacy engine flips the texture V in its shader
+                    // instead. Mirror locally so they don't render upside down.
+                    // SVG-embedded images bake the flip into transform2d (d < 0).
+                    if (t[3] > 0)
+                        sprite.setFromMatrix(new Matrix(...t).append(new Matrix(1, 0, 0, -1, 0, tex.height)))
+                })
                 .catch(err => console.warn('[workspace2] image load failed:', err))
             container.addChild(sprite)
             continue
