@@ -16,8 +16,8 @@
 import React from 'react'
 import { connect, useDispatch, useSelector } from 'react-redux';
 
-import { removeOperation, moveOperation, operationRemoveDocument, setOperationAttrs, clearOperations } from '../../actions/operation';
-import { selectDocument } from '../../actions/document'
+import { removeOperation, moveOperation, operationRemoveDocument, setOperationAttrs, clearOperations, setCurrentOperation } from '../../actions/operation';
+import { selectDocument, selectDocuments, toggleSelectDocument } from '../../actions/document'
 import { addOperation } from '../../actions/operation'
 import { hasClosedRawPaths } from '../../lib/mesh';
 
@@ -26,7 +26,7 @@ import { selectedDocuments } from '../document'
 
 import { MaterialPickerButton, MaterialSaveButton } from '../material-database'
 
-import { ButtonToolbar, Button } from 'react-bootstrap';
+import { ButtonToolbar, Button, Modal } from 'react-bootstrap';
 import Icon from '../font-awesome'
 
 import { Details } from '../material-database'
@@ -150,7 +150,20 @@ const traverseDocumentTypes = (ids, documents) => {
 
 class Operation extends React.Component {
 
+    state = { showEdit: false };
+
     UNSAFE_componentWillMount() {
+        // click = make current + highlight its documents on the canvas;
+        // ignore clicks that were meant for the embedded controls
+        this.selectOperation = e => {
+            if (e && e.target.closest && e.target.closest('button, select, input, a, .btn')) return;
+            const { op, dispatch } = this.props;
+            dispatch(setCurrentOperation(op.id));
+            dispatch(selectDocuments(false));
+            for (const id of (op.documents || [])) dispatch(toggleSelectDocument(id));
+        };
+        this.openEdit = e => { if (e) e.stopPropagation(); this.setState({ showEdit: true }); };
+        this.closeEdit = () => this.setState({ showEdit: false });
         this.setType = e => this.props.dispatch(setOperationAttrs({ type: e.target.value }, this.props.op.id));
         this.setTypeString = e => this.props.dispatch(setOperationAttrs({ type: e }, this.props.op.id));
         this.toggleExpanded = e => this.props.dispatch(setOperationAttrs({ expanded: !this.props.op.expanded }, this.props.op.id));
@@ -165,6 +178,37 @@ class Operation extends React.Component {
         this.documentTypes = { vectors: 0, images: 0 };
         this.availableOps = Object.keys(OPERATION_TYPES);
         this.operationGroups = groupFields(OPERATION_TYPES[this.props.op.type].fields)
+    }
+
+    // The parameter fields, reused by the inline expansion and the edit modal.
+    renderFields() {
+        let { op, settings, fillColors, strokeColors, dispatch, bounds, selected } = this.props;
+        return (
+            <table>
+                <tbody>
+                    {Object.entries(this.operationGroups || {}).map((entry) => {
+                        let [key, group] = entry;
+                        let fields = group.fields
+                            .filter(fieldName => { let f = OPERATION_FIELDS[fieldName]; return f && (!f.condition || f.condition(op, settings)); })
+                            .map(fieldName => {
+                                return <Field
+                                    key={fieldName} op={op} field={OPERATION_FIELDS[fieldName]} selected={selected}
+                                    fillColors={fillColors} strokeColors={strokeColors} settings={settings}
+                                    operationsBounds={bounds} setAttrs={setOperationAttrs} dispatch={dispatch} />
+                            })
+                        if (key !== '_default' && group.fields.length) {
+                            if (group.collapsible) {
+                                return <tr key={key}><td><Details className="operationGroup" handler={(<h4>{key}</h4>)}><table><tbody>{fields}</tbody></table> </Details></td></tr>
+                            } else {
+                                return <tr key={key}><td><h4>{key}</h4><table><tbody>{fields}</tbody></table></td></tr>
+                            }
+                        } else {
+                            return <tr key={key}><td><table><tbody>{fields}</tbody></table></td></tr>
+                        }
+                    })}
+                </tbody>
+            </table>
+        );
     }
 
     UNSAFE_componentWillReceiveProps(nextProps) {
@@ -220,7 +264,9 @@ class Operation extends React.Component {
                         className={op.expanded ? 'fa fa-fw fa-minus-circle' : 'fa fa-fw fa-plus-circle'} />
                 </div>
 
-                <div style={{ display: 'table-cell', width: '100%' }}>
+                <div style={{ display: 'table-cell', width: '100%' }}
+                    onClick={this.selectOperation} onDoubleClick={this.openEdit}
+                    title="Click: select this operation and highlight its documents on the canvas. Double-click (or the pencil) to edit its parameters in a dialog.">
                     {header}
                     <span style={{ display: 'flex', justifyContent: 'space-between' }}>
 
@@ -234,6 +280,7 @@ class Operation extends React.Component {
                             </span>
                         </div>
                         <div className="btn-group">
+                            <button className="btn btn-info btn-xs" onClick={this.openEdit} title="Edit this operation's parameters in a dialog"><i className="fa fa-pencil"></i></button>
                             <button className={"btn btn-warning btn-xs " + (op.enabled ? '' : 'btn-off')} onClick={this.toggleEnabled} title="Enable/Disable operation"><i className="fa fa-power-off"></i></button>
                             <button className="btn btn-default btn-xs " onClick={this.moveUp}><i className="fa fa-arrow-up"></i></button>
                             <button className="btn btn-default btn-xs" onClick={this.moveDn}><i className="fa fa-arrow-down"></i></button>
@@ -288,31 +335,7 @@ class Operation extends React.Component {
                     <div style={leftStyle} />
                     <div style={{ display: 'table-cell' }} />
                     <div style={{ display: 'table-cell', whiteSpace: 'normal' }}>
-                        <table>
-                            <tbody>
-                                {Object.entries(this.operationGroups || {}).map((entry) => {
-                                    let [key, group] = entry;
-                                    let fields = group.fields
-                                        .filter(fieldName => { let f = OPERATION_FIELDS[fieldName]; return f && (!f.condition || f.condition(op, settings)); })
-                                        .map(fieldName => {
-                                            return <Field
-                                                key={fieldName} op={op} field={OPERATION_FIELDS[fieldName]} selected={selected}
-                                                fillColors={fillColors} strokeColors={strokeColors} settings={settings}
-                                                operationsBounds={bounds} setAttrs={setOperationAttrs} dispatch={dispatch} />
-                                        })
-                                    if (key !== '_default' && group.fields.length) {
-                                        if (group.collapsible) {
-                                            return <tr key={key}><td><Details className="operationGroup" handler={(<h4>{key}</h4>)}><table><tbody>{fields}</tbody></table> </Details></td></tr>
-                                        } else {
-                                            return <tr key={key}><td><h4>{key}</h4><table><tbody>{fields}</tbody></table></td></tr>
-                                        }
-                                    } else {
-                                        return <tr key={key}><td><table><tbody>{fields}</tbody></table></td></tr>
-                                    }
-
-                                })}
-                            </tbody>
-                        </table>
+                        {this.renderFields()}
                     </div>
                 </div>,
             );
@@ -375,7 +398,27 @@ class Operation extends React.Component {
             } // types[op.type].allowTabs
         } // op.expanded
 
-        return <div className={"operation-row " + (op.enabled ? "" : "disabled")} >{rows}</div>;
+        return (
+            <div className={"operation-row " + (op.enabled ? "" : "disabled")} >
+                {rows}
+                <Modal show={this.state.showEdit} onHide={this.closeEdit} bsSize="large">
+                    <Modal.Header closeButton>
+                        <Modal.Title>
+                            <span className="badge" style={{ marginRight: 8 }}>{this.props.index}</span>
+                            {op.name && op.name.length ? op.name : op.type}
+                            <small style={{ marginLeft: 10 }}>{op.type}</small>
+                        </Modal.Title>
+                    </Modal.Header>
+                    <Modal.Body>
+                        {this.renderFields()}
+                    </Modal.Body>
+                    <Modal.Footer>
+                        <small style={{ float: 'left', color: '#888' }}>Changes apply instantly — regenerate the G-code when done.</small>
+                        <Button bsStyle="primary" onClick={this.closeEdit}>Done</Button>
+                    </Modal.Footer>
+                </Modal>
+            </div>
+        );
     }
 } // Operation
 

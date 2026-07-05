@@ -355,6 +355,9 @@ export function Cam() {
                         </ButtonToolbar>:undefined}
                 </div>
             </Splitter>
+            <OperationDiagram {...{ operations, currentOperation }} />
+            <Operations style={{ flexGrow: 2, display: "flex", flexDirection: "column" }} />
+            {/* pipeline order: documents (input) -> operations (recipe) -> gcode (output) */}
             <Alert bsStyle="success" style={{ padding: "4px", marginBottom: 7 }}>
                 <table style={{ width: 100 + '%' }}>
                     <tbody>
@@ -362,7 +365,7 @@ export function Cam() {
                             <th>GCODE</th>
                             <td style={{ width: "80%", textAlign: "right" }}>{!gcoding.enable ? (
                                 <ButtonToolbar style={{ float: "right" }}>
-                                    <button title="Generate G-Code from Operations below" className={"btn btn-xs btn-attention " + (dirty ? 'btn-warning' : 'btn-primary')} disabled={!valid || gcoding.enable} onClick={(e) => generateGcode(e)}><i className="fa fa-fw fa-industry" />&nbsp;Generate</button>
+                                    <button title="Generate G-Code from Operations above" className={"btn btn-xs btn-attention " + (dirty ? 'btn-warning' : 'btn-primary')} disabled={!valid || gcoding.enable} onClick={(e) => generateGcode(e)}><i className="fa fa-fw fa-industry" />&nbsp;Generate</button>
                                     <ButtonGroup>
                                         <button title="View generated G-Code in a tab. Please disable popup blockers. Press [SHIFT] to avoid large file size confirmation and open in a new window." className="btn btn-info btn-xs" disabled={!valid || gcoding.enable} onClick={viewGcode}><i className="fa fa-eye" /></button>
                                         <button title="Export G-code to File. Press [SHIFT] to edit filename." className="btn btn-success btn-xs" disabled={!valid || gcoding.enable} onClick={saveGcode}><i className="fa fa-floppy-o" /></button>
@@ -376,8 +379,6 @@ export function Cam() {
                     </tbody>
                 </table>
             </Alert>
-            <OperationDiagram {...{ operations, currentOperation }} />
-            <Operations style={{ flexGrow: 2, display: "flex", flexDirection: "column" }} />
         </div>
     );
 }
