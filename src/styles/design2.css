@@ -149,6 +149,10 @@
     box-shadow: 0 1px 3px oklch(0 0 0 / 0.1);
 }
 
+/* canvas 2.0 replaces the legacy floating controls with the docked
+ * inspector; hide them while the overlay is active (they render above it) */
+.ws2-on .floating-controls { display: none !important; }
+
 /* dark variant, for toolbars floating over the preview stage */
 .d2-chipbar-dark {
     display: inline-flex; align-items: center; gap: 2px;

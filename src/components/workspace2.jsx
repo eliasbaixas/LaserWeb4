@@ -19,6 +19,9 @@ import { Viewport } from 'pixi-viewport'
 
 import { GlobalStore } from '../index'
 import { selectDocument, toggleSelectDocument, selectDocuments, removeDocumentSelected, transform2dSelectedDocuments } from '../actions/document'
+import { selectPane } from '../actions/panes'
+import { translateM, scaleAbout, rotateAbout, computeAttachedIds } from '../lib/doc-bounds'
+import Inspector2 from './inspector2'
 import { t } from '../lib/i18n'
 
 const COLORS = {
@@ -103,6 +106,66 @@ function drawSelection(g, boundsList, scale) {
     }
 }
 
+// Combined bounds of the selected entries in the bounds list
+function selectedBox(boundsList) {
+    let b = null
+    for (const e of boundsList) {
+        if (!e.selected) continue
+        if (!b) b = { x1: e.x1, y1: e.y1, x2: e.x2, y2: e.y2 }
+        else {
+            b.x1 = Math.min(b.x1, e.x1); b.y1 = Math.min(b.y1, e.y1)
+            b.x2 = Math.max(b.x2, e.x2); b.y2 = Math.max(b.y2, e.y2)
+        }
+    }
+    return b
+}
+
+// Figma-style handles: 8 resize squares + a rotate knob above the top edge.
+// Sizes are screen-constant (divided by zoom scale); redrawn on zoom and on
+// every selection change. Each handle starts a gesture on pointerdown.
+function drawHandles(container, boundsList, scale, startGesture) {
+    container.removeChildren().forEach(c => c.destroy())
+    const b = selectedBox(boundsList)
+    if (!b) return
+    const s = Math.max(scale, 0.001)
+    const pad = 4 / s, hs = 5 / s
+    const x1 = b.x1 - pad, y1 = b.y1 - pad, x2 = b.x2 + pad, y2 = b.y2 + pad
+    const cx = (x1 + x2) / 2, cy = (y1 + y2) / 2
+    // world is y-up: y2 is the visual top
+    const spots = [
+        { dir: 'nw', x: x1, y: y2, cursor: 'nwse-resize', anchor: { x: x2, y: y1 } },
+        { dir: 'n', x: cx, y: y2, cursor: 'ns-resize', anchor: { x: cx, y: y1 }, axis: 'y' },
+        { dir: 'ne', x: x2, y: y2, cursor: 'nesw-resize', anchor: { x: x1, y: y1 } },
+        { dir: 'e', x: x2, y: cy, cursor: 'ew-resize', anchor: { x: x1, y: cy }, axis: 'x' },
+        { dir: 'se', x: x2, y: y1, cursor: 'nwse-resize', anchor: { x: x1, y: y2 } },
+        { dir: 's', x: cx, y: y1, cursor: 'ns-resize', anchor: { x: cx, y: y2 }, axis: 'y' },
+        { dir: 'sw', x: x1, y: y1, cursor: 'nesw-resize', anchor: { x: x2, y: y2 } },
+        { dir: 'w', x: x1, y: cy, cursor: 'ew-resize', anchor: { x: x2, y: cy }, axis: 'x' },
+    ]
+    for (const spot of spots) {
+        const h = new Graphics()
+        h.rect(spot.x - hs, spot.y - hs, hs * 2, hs * 2)
+            .fill(0xffffff)
+            .stroke({ width: 1.5, color: COLORS.docSelected, pixelLine: true })
+        h.eventMode = 'static'
+        h.cursor = spot.cursor
+        // generous hit area: the square is tiny at high zoom-out
+        h.hitArea = new Rectangle(spot.x - hs * 1.6, spot.y - hs * 1.6, hs * 3.2, hs * 3.2)
+        h.on('pointerdown', e => startGesture(e, 'resize', { anchor: spot.anchor, axis: spot.axis || null }))
+        container.addChild(h)
+    }
+    // rotate knob above the top edge, with a stem
+    const ry = y2 + 16 / s
+    const rot = new Graphics()
+    rot.moveTo(cx, y2).lineTo(cx, ry).stroke({ width: 1.5, color: COLORS.docSelected, pixelLine: true })
+    rot.circle(cx, ry, hs * 1.2).fill(0xffffff).stroke({ width: 1.5, color: COLORS.docSelected, pixelLine: true })
+    rot.eventMode = 'static'
+    rot.cursor = 'grab'
+    rot.hitArea = new Rectangle(cx - hs * 2, ry - hs * 2, hs * 4, hs * 4)
+    rot.on('pointerdown', e => startGesture(e, 'rotate', { center: { x: cx, y: cy } }))
+    container.addChild(rot)
+}
+
 // A tap is a press+release that barely moved — a viewport pan gesture that
 // happens to start on an object must not select it.
 function onTap(obj, handler) {
@@ -124,21 +187,8 @@ function makeDocInteractive(obj, docId, onDocDown) {
     obj.on('pointerdown', e => onDocDown(e, docId))
 }
 
-// Documents referenced by any operation (including their whole subtree):
-// these are the ones that will actually produce G-code.
-export function computeAttachedIds(documents, operations) {
-    const byId = new Map(documents.map(d => [d.id, d]))
-    const attached = new Set()
-    const mark = (id) => {
-        if (attached.has(id)) return
-        attached.add(id)
-        const d = byId.get(id)
-        if (d && d.children) for (const c of d.children) mark(c)
-    }
-    for (const op of operations)
-        for (const id of (op.documents || [])) mark(id)
-    return attached
-}
+// re-exported for legacy importers (document.jsx); lives in lib/doc-bounds
+export { computeAttachedIds }
 
 function drawDocuments(container, documents, attachedIds, layers, boundsList, onBoundsChange, onDocDown) {
     container.removeChildren().forEach(c => c.destroy())
@@ -156,10 +206,9 @@ function drawDocuments(container, documents, attachedIds, layers, boundsList, on
             const sprite = new Sprite()
             const t = doc.transform2d
             sprite.setFromMatrix(new Matrix(...t))
-            // setFromMatrix stores placement in sprite.position — remember it
-            // so dragging adds a delta instead of overwriting the placement
-            sprite.__baseX = sprite.position.x
-            sprite.__baseY = sprite.position.y
+            // remember the full placement matrix so gestures (move / resize /
+            // rotate) can preview as gestureMatrix ∘ base without losing it
+            sprite.__baseM = new Matrix(...t)
             sprite.alpha = (doc.selected ? 0.75 : 1) * layerAlpha
             Assets.load(doc.dataURL)
                 .then(tex => {
@@ -172,8 +221,7 @@ function drawDocuments(container, documents, attachedIds, layers, boundsList, on
                     let m = new Matrix(...t)
                     if (t[3] > 0) m = m.append(new Matrix(1, 0, 0, -1, 0, tex.height))
                     sprite.setFromMatrix(m)
-                    sprite.__baseX = sprite.position.x
-                    sprite.__baseY = sprite.position.y
+                    sprite.__baseM = m.clone()
                     const pts = [[0, 0], [tex.width, 0], [0, tex.height], [tex.width, tex.height]]
                         .map(([px, py]) => m.apply({ x: px, y: py }))
                     boundsList.push({
@@ -211,6 +259,7 @@ function drawDocuments(container, documents, attachedIds, layers, boundsList, on
             makeDocInteractive(g, doc.id, onDocDown)
             boundsList.push({ selected: doc.selected, x1, y1, x2, y2 })
         }
+        g.__baseM = new Matrix() // geometry baked in world mm; base = identity
         container.addChild(g)
     }
 }
@@ -274,6 +323,38 @@ function drawCursor(g) {
     g.circle(0, 0, 3).stroke({ width: 1.5, color: COLORS.cursor, pixelLine: true })
 }
 
+// Slim vertical pipeline: where am I in the docs → ops → gcode → run flow?
+// Each step navigates to the pane where that phase happens.
+function PipelineRail({ documents, operations, gcode, gcodeDirty, playing }) {
+    const steps = [
+        { label: 'Docs', done: documents.length > 0, pane: 'cam', title: t('Documents loaded — click to open Files') },
+        { label: 'Ops', done: operations.length > 0, pane: 'cam', title: t('Operations defined — click to open Files') },
+        { label: 'G-code', done: !!gcode && !gcodeDirty, warn: !!gcode && gcodeDirty, pane: 'cam', title: gcodeDirty ? t('G-code is stale — regenerate in Files') : t('G-code generated — click to open Files') },
+        { label: 'Run', done: playing, pane: 'jog', title: t('Run from the Control pane') },
+    ]
+    const current = steps.findIndex(s => !s.done)
+    return (
+        <div style={{ width: 54, flex: '0 0 auto', background: 'var(--fp-panel)', borderRight: '1px solid var(--fp-border)', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '12px 0' }}>
+            {steps.map((s, i) => (
+                <React.Fragment key={s.label}>
+                    {i > 0 && <div style={{ width: 2, height: 11, background: steps[i - 1].done ? 'var(--fp-go-line)' : 'var(--fp-border-input)' }} />}
+                    <div title={s.title} onClick={() => GlobalStore().dispatch(selectPane(s.pane))}
+                        style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer' }}>
+                        <div style={{
+                            width: 30, height: 30, borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 12,
+                            background: i === current ? 'var(--fp-go)' : 'var(--fp-surface)',
+                            color: i === current ? '#fff' : (s.warn ? 'var(--fp-amber-deep)' : (s.done ? 'var(--fp-go-deep)' : 'var(--fp-text-muted)')),
+                            border: i === current ? 'none' : `1px solid ${s.warn ? 'var(--fp-amber-line)' : (s.done ? 'var(--fp-go-line)' : 'var(--fp-border-input)')}`,
+                            boxShadow: i === current ? '0 2px 6px oklch(0.56 0.13 152 / 0.35)' : 'none',
+                        }}>{s.done ? '✓' : (s.warn ? '!' : i + 1)}</div>
+                        <span style={{ fontSize: 8.5, margin: '3px 0', color: i === current ? 'var(--fp-go-deep)' : 'var(--fp-text-muted)', fontWeight: i === current ? 600 : 400 }}>{s.label}</span>
+                    </div>
+                </React.Fragment>
+            ))}
+        </div>
+    )
+}
+
 export function Workspace2({ style }) {
     const holderRef = useRef(null)
     const pixiRef = useRef(null)
@@ -283,8 +364,12 @@ export function Workspace2({ style }) {
     const documents = useSelector(s => s.documents)
     const operations = useSelector(s => s.operations)
     const gcode = useSelector(s => s.gcode.content)
+    const gcodeDirty = useSelector(s => s.gcode.dirty)
     const machineWidth = useSelector(s => Number(s.settings.machineWidth) || 300)
     const machineHeight = useSelector(s => Number(s.settings.machineHeight) || 200)
+    const cursorPos = useSelector(s => s.workspace.cursorPos)
+    const machineConnected = useSelector(s => s.com.machineConnected)
+    const playing = useSelector(s => s.com.playing)
 
     const [layers, setLayers] = useState(() => {
         try {
@@ -331,57 +416,100 @@ export function Workspace2({ style }) {
                 const docsC = new Container()
                 const gcodeG = new Graphics()
                 const selG = new Graphics()
+                const handlesC = new Container()
                 const cursorG = new Graphics()
                 drawCursor(cursorG)
-                world.addChild(gridG, docsC, gcodeG, selG, cursorG)
-
-                // dash size is screen-relative: refresh the overlay on zoom
-                viewport.on('zoomed', () =>
-                    drawSelection(selG, boundsRef.current, viewport.scale.x))
+                world.addChild(gridG, docsC, gcodeG, selG, handlesC, cursorG)
 
                 // tap on empty bed = deselect (documents sit above and win)
                 onTap(gridG, () => GlobalStore().dispatch(selectDocuments(false)))
 
-                // --- drag to move: live offset on the pixi objects, one
+                // --- gesture engine: move / resize / rotate preview live on
+                // the pixi objects (gestureMatrix ∘ base), then commit as ONE
                 // transform2dSelectedDocuments dispatch on release ------------
-                const drag = { active: false, sx: 0, sy: 0, dx: 0, dy: 0 }
-                const onDocDown = (e, docId) => {
+                const gesture = { active: false, kind: null, mat: null, start: null, anchor: null, axis: null, center: null }
+                const startGesture = (e, kind, opts = {}) => {
                     e.stopPropagation() // keep the viewport pan plugin out
-                    const st = GlobalStore().getState()
-                    const doc = st.documents.find(d => d.id === docId)
-                    if (e.ctrlKey || e.metaKey || e.shiftKey) {
-                        GlobalStore().dispatch(toggleSelectDocument(docId))
-                        return
-                    }
-                    if (!doc || !doc.selected) GlobalStore().dispatch(selectDocument(docId))
-                    const pnt = world.toLocal(e.global)
-                    drag.active = true
-                    drag.sx = pnt.x; drag.sy = pnt.y; drag.dx = 0; drag.dy = 0
+                    const p = world.toLocal(e.global)
+                    Object.assign(gesture, { active: true, kind, mat: null, start: { x: p.x, y: p.y } }, opts)
                 }
-                app.stage.eventMode = 'static'
-                app.stage.hitArea = app.screen
-                app.stage.on('globalpointermove', (e) => {
-                    if (!drag.active) return
-                    const pnt = world.toLocal(e.global)
-                    drag.dx = pnt.x - drag.sx
-                    drag.dy = pnt.y - drag.sy
+                const applyPreview = (m) => {
+                    gesture.mat = m
+                    const M = new Matrix(...m)
                     const selected = new Set(GlobalStore().getState().documents
                         .filter(d => d.selected).map(d => d.id))
                     for (const c of docsC.children)
                         if (selected.has(c.__docId))
-                            c.position.set((c.__baseX || 0) + drag.dx, (c.__baseY || 0) + drag.dy)
-                    selG.position.set(drag.dx, drag.dy)
-                })
-                const endDrag = () => {
-                    if (!drag.active) return
-                    drag.active = false
-                    for (const c of docsC.children) c.position.set(c.__baseX || 0, c.__baseY || 0)
-                    selG.position.set(0, 0)
-                    if (Math.hypot(drag.dx, drag.dy) > 0.01)
-                        GlobalStore().dispatch(transform2dSelectedDocuments([1, 0, 0, 1, drag.dx, drag.dy]))
+                            c.setFromMatrix(M.clone().append(c.__baseM || new Matrix()))
+                    selG.setFromMatrix(M)
+                    handlesC.setFromMatrix(M)
                 }
-                app.stage.on('pointerup', endDrag)
-                app.stage.on('pointerupoutside', endDrag)
+                const onDocDown = (e, docId) => {
+                    const st = GlobalStore().getState()
+                    const doc = st.documents.find(d => d.id === docId)
+                    if (e.ctrlKey || e.metaKey || e.shiftKey) {
+                        e.stopPropagation()
+                        GlobalStore().dispatch(toggleSelectDocument(docId))
+                        return
+                    }
+                    if (!doc || !doc.selected) GlobalStore().dispatch(selectDocument(docId))
+                    startGesture(e, 'move')
+                }
+                app.stage.eventMode = 'static'
+                app.stage.hitArea = app.screen
+                const clampScale = (v) => Math.max(0.01, Math.abs(v)) // no flips through handles
+                app.stage.on('globalpointermove', (e) => {
+                    if (!gesture.active) return
+                    const p = world.toLocal(e.global)
+                    const { start, anchor, axis, center, kind } = gesture
+                    let m = null
+                    if (kind === 'move') {
+                        m = translateM(p.x - start.x, p.y - start.y)
+                    } else if (kind === 'resize') {
+                        if (axis === 'x') {
+                            const d0 = start.x - anchor.x
+                            m = scaleAbout(d0 ? clampScale((p.x - anchor.x) / d0) : 1, 1, anchor.x, anchor.y)
+                        } else if (axis === 'y') {
+                            const d0 = start.y - anchor.y
+                            m = scaleAbout(1, d0 ? clampScale((p.y - anchor.y) / d0) : 1, anchor.x, anchor.y)
+                        } else {
+                            // corners scale uniformly by distance to the anchor
+                            const d0 = Math.hypot(start.x - anchor.x, start.y - anchor.y)
+                            const s = clampScale(Math.hypot(p.x - anchor.x, p.y - anchor.y) / Math.max(d0, 1e-6))
+                            m = scaleAbout(s, s, anchor.x, anchor.y)
+                        }
+                    } else if (kind === 'rotate') {
+                        let th = Math.atan2(p.y - center.y, p.x - center.x)
+                            - Math.atan2(start.y - center.y, start.x - center.x)
+                        if (e.shiftKey) th = Math.round(th / (Math.PI / 12)) * (Math.PI / 12) // 15° snap
+                        m = rotateAbout(th, center.x, center.y)
+                    }
+                    if (m) applyPreview(m)
+                })
+                const endGesture = () => {
+                    if (!gesture.active) return
+                    const m = gesture.mat
+                    gesture.active = false
+                    gesture.mat = null
+                    for (const c of docsC.children)
+                        if (c.__baseM) c.setFromMatrix(c.__baseM)
+                    selG.setFromMatrix(new Matrix())
+                    handlesC.setFromMatrix(new Matrix())
+                    if (!m) return
+                    const changed = Math.abs(m[0] - 1) > 1e-4 || Math.abs(m[1]) > 1e-4
+                        || Math.abs(m[2]) > 1e-4 || Math.abs(m[3] - 1) > 1e-4
+                        || Math.hypot(m[4], m[5]) > 0.01
+                    if (changed) GlobalStore().dispatch(transform2dSelectedDocuments(m))
+                }
+                app.stage.on('pointerup', endGesture)
+                app.stage.on('pointerupoutside', endGesture)
+
+                // dash/handle sizes are screen-relative: refresh on zoom
+                const refreshOverlay = () => {
+                    drawSelection(selG, boundsRef.current, viewport.scale.x)
+                    drawHandles(handlesC, boundsRef.current, viewport.scale.x, startGesture)
+                }
+                viewport.on('zoomed', refreshOverlay)
 
                 // fit the bed with a margin
                 const s = Math.min(
@@ -401,7 +529,7 @@ export function Workspace2({ style }) {
 
                 app.renderer.on('resize', (w, h) => viewport.resize(w, h))
 
-                pixiRef.current = { app, viewport, world, gridG, docsC, gcodeG, selG, cursorG, onDocDown }
+                pixiRef.current = { app, viewport, world, gridG, docsC, gcodeG, selG, handlesC, cursorG, onDocDown, refreshOverlay }
                 setReady(r => r + 1)
             })
             .catch(err => console.error('[workspace2] init failed:', err))
@@ -428,10 +556,9 @@ export function Workspace2({ style }) {
     useEffect(() => {
         const p = pixiRef.current
         if (!p) return
-        const refreshSelection = () => drawSelection(p.selG, boundsRef.current, p.viewport.scale.x)
         drawDocuments(p.docsC, documents, computeAttachedIds(documents, operations), layers,
-            boundsRef.current, refreshSelection, p.onDocDown)
-        refreshSelection()
+            boundsRef.current, p.refreshOverlay, p.onDocDown)
+        p.refreshOverlay()
     }, [ready, documents, operations, layers])
 
     // G-code toolpath preview: grey = rapids, amber = cutting moves
@@ -457,56 +584,65 @@ export function Workspace2({ style }) {
     }, [])
 
     const selectedDocs = documents.filter(d => d.selected)
+    const single = selectedDocs.length === 1 ? selectedDocs[0] : null
+    const [cx, cy] = (cursorPos || []).map(Number)
 
-    const chip = (key, color, label, title) => (
+    const layerChip = (key, label, title) => (
         <button key={key} onClick={() => toggleLayer(key)} title={title}
             style={{
-                display: 'flex', alignItems: 'center', gap: 6,
-                padding: '3px 10px', borderRadius: 12, fontSize: 12,
-                border: '1px solid #c6ccd8', cursor: 'pointer',
-                background: layers[key] ? '#fff' : '#e8eaef',
-                color: layers[key] ? '#22262c' : '#9aa1ad',
+                display: 'inline-flex', alignItems: 'center', gap: 5,
+                padding: '5px 9px', borderRadius: 8, fontSize: 11, fontWeight: 600,
+                cursor: 'pointer', whiteSpace: 'nowrap',
+                border: `1px solid ${layers[key] ? 'var(--fp-border-input)' : 'transparent'}`,
+                background: layers[key] ? 'var(--fp-surface)' : 'transparent',
+                color: layers[key] ? 'var(--fp-text)' : 'var(--fp-text-muted)',
+                opacity: layers[key] ? 1 : 0.55,
                 textDecoration: layers[key] ? 'none' : 'line-through',
             }}>
-            <span style={{
-                width: 10, height: 10, borderRadius: 5, background: color,
-                opacity: layers[key] ? 1 : 0.35,
-            }} />
             {label}
         </button>
     )
 
     return (
-        <div style={{ ...style, overflow: 'hidden' }}>
-            <div ref={holderRef} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
-                title="Workspace 2.0 (PixiJS prototype) — drag to pan, wheel to zoom, click to select" />
-            <div style={{ position: 'absolute', top: 10, left: 10, zIndex: 2, display: 'flex', gap: 6 }}>
-                {chip('loaded', '#9aa1ad', t('loaded'), 'Documents not attached to any operation (dimmed): they will NOT produce G-code')}
-                {chip('added', '#22262c', t('in operations'), 'Documents attached to an operation: this is what will actually cut')}
-                {chip('gcode', '#ffa94d', t('G-code'), 'Generated toolpath preview: grey rapids, amber cutting moves')}
+        <div style={{ ...style, overflow: 'hidden', display: 'flex', background: 'var(--fp-bg)', fontFamily: 'var(--fp-font)' }}>
+            <PipelineRail documents={documents} operations={operations} gcode={gcode} gcodeDirty={gcodeDirty} playing={playing} />
+
+            <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+                {/* CanvasToolbar — right side stays clear of the floating switcher buttons */}
+                <div style={{ height: 40, flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 8, padding: '0 200px 0 12px', borderBottom: '1px solid var(--fp-border)', background: 'var(--fp-surface)' }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--fp-text-muted)', letterSpacing: '0.05em' }}>{t('LAYERS')}</span>
+                    {layerChip('loaded', `◱ ${t('Documents')}`, t('Documents not attached to any operation (dimmed): they will NOT produce G-code'))}
+                    {layerChip('added', `◼ ${t('In operation')}`, t('Documents attached to an operation: this is what will actually cut'))}
+                    {layerChip('gcode', `〰 ${t('G-code preview')}`, t('Generated toolpath preview: grey rapids, amber cutting moves'))}
+                </div>
+
+                <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
+                    <div ref={holderRef} style={{ position: 'absolute', inset: 0 }}
+                        title={t('Drag to pan, wheel to zoom, click to select. Handles resize (corners keep proportion) and rotate (shift snaps 15°).')} />
+                </div>
+
+                {/* StatusBar */}
+                <div style={{ height: 26, flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 12, padding: '0 12px', background: 'var(--fp-surface)', borderTop: '1px solid var(--fp-border)', fontSize: 10.5, color: 'var(--fp-text-muted)', fontFamily: 'var(--fp-mono)', whiteSpace: 'nowrap', overflow: 'hidden' }}>
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {selectedDocs.length === 0 ? t('no selection')
+                            : (single ? `sel: ${single.name || t('object')}` : `sel: ${selectedDocs.length} ${t('objects')}`)}
+                    </span>
+                    {machineConnected && isFinite(cx) &&
+                        <span>{t('cursor')} {cx.toFixed(1)}, {cy.toFixed(1)} mm</span>}
+                    <span style={{ flex: 1 }} />
+                    <span>{documents.filter(d => d.isRoot).length} docs · {operations.length} ops</span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><span style={{ width: 12, borderTop: '2px dashed var(--fp-accent)' }} /> {t('selection')}</span>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><span style={{ width: 12, borderTop: '2px solid var(--fp-amber)' }} /> G-code</span>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><span style={{ width: 8, height: 8, border: '2px solid var(--fp-danger)', borderRadius: '50%' }} /> {t('machine')}</span>
+                    </span>
+                    <span style={{ color: machineConnected ? 'var(--fp-go-deep)' : 'var(--fp-text-muted)' }}>
+                        ● {machineConnected ? t('connected') : t('machine disconnected')}
+                    </span>
+                </div>
             </div>
-            {selectedDocs.length > 0 && (() => {
-                const single = selectedDocs.length === 1 ? selectedDocs[0] : null
-                const opsUsing = single
-                    ? operations.filter(op => computeAttachedIds(documents, [op]).has(single.id)).length
-                    : null
-                const orphan = single && opsUsing === 0
-                return (
-                    <div style={{
-                        position: 'absolute', left: 10, bottom: 10, zIndex: 2,
-                        padding: '4px 10px', borderRadius: 12, fontSize: 12,
-                        background: orphan ? 'rgba(190,120,20,.95)' : 'rgba(31,111,208,.92)',
-                        color: '#fff',
-                        boxShadow: '0 1px 4px rgba(0,0,0,.3)', pointerEvents: 'none',
-                    }}>
-                        {single ? (single.name || t('object')) : `${selectedDocs.length} ${t('objects')}`}
-                        {single && (orphan
-                            ? <span>{t(' — not in any operation: it will NOT cut')}</span>
-                            : <span style={{ opacity: 0.85 }}> — in {opsUsing} operation{opsUsing > 1 ? 's' : ''}</span>)}
-                        <span style={{ opacity: 0.75 }}>{t(' · ⌫ delete')}</span>
-                    </div>
-                )
-            })()}
+
+            <Inspector2 />
         </div>
     )
 }

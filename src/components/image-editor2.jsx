@@ -125,7 +125,7 @@ function SelectRow({ title, hint, value, onChange, options }) {
 
 /* ---- the editor -------------------------------------------------------- */
 
-function ImageEditor2({ show, onHide, documents, operations, currentOperation, dispatch }) {
+function ImageEditor2({ show, onHide, initialTab, documents, operations, currentOperation, dispatch }) {
     const [tab, setTab] = useState('adjust')
     const [view, setView] = useState('result')
     const [zoom, setZoom] = useState(100)
@@ -156,7 +156,7 @@ function ImageEditor2({ show, onHide, documents, operations, currentOperation, d
     useEffect(() => {
         if (!show) return
         snapRef.current = op ? { opId: op.id, filters: pick(op, FILTER_FIELDS) } : null
-        setTab('adjust'); setView('result'); setZoom(100)
+        setTab(initialTab === 'trace' ? 'trace' : 'adjust'); setView('result'); setZoom(100)
         setTrace(tr => ({ ...tr, svg: null, visible: false }))
     }, [show]) // eslint-disable-line react-hooks/exhaustive-deps
 

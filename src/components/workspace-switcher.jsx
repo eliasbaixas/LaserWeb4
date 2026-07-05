@@ -22,14 +22,17 @@ export default function WorkspaceSwitcher() {
         setV2(!v2)
     }
 
+    // when v2 is on, the buttons shift left of the docked inspector (264px)
+    // and the ws2-on class hides the legacy floating controls underneath
+    const rightBase = v2 ? 278 : 10
     return (
-        <div style={{ flexGrow: 1, display: 'flex', position: 'relative' }}>
+        <div className={v2 ? 'ws2-on' : undefined} style={{ flexGrow: 1, display: 'flex', position: 'relative' }}>
             <Workspace style={{ flexGrow: 1, position: 'relative' }} />
             {v2 && <Workspace2 style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 5 }} />}
             <button onClick={toggle}
                 title={v2 ? 'Back to the classic workspace' : 'Try Workspace 2.0 (PixiJS prototype: pan/zoom, view-only)'}
                 style={{
-                    position: 'absolute', top: 10, right: 10, zIndex: 6,
+                    position: 'absolute', top: 10, right: rightBase, zIndex: 6,
                     padding: '3px 10px', borderRadius: 12, fontSize: 12,
                     border: '1px solid #4da3ff55', cursor: 'pointer',
                     background: v2 ? '#4da3ff' : 'rgba(20,23,28,.75)',
@@ -40,7 +43,7 @@ export default function WorkspaceSwitcher() {
             <button onClick={() => setLocale(LOCALES[(LOCALES.indexOf(getLocale()) + 1) % LOCALES.length])}
                 title="Switch UI language / Cambiar idioma"
                 style={{
-                    position: 'absolute', top: 10, right: 110, zIndex: 6,
+                    position: 'absolute', top: 10, right: rightBase + 100, zIndex: 6,
                     padding: '3px 10px', borderRadius: 12, fontSize: 12,
                     border: '1px solid #4da3ff55', cursor: 'pointer',
                     background: 'rgba(20,23,28,.75)', color: '#4da3ff',
