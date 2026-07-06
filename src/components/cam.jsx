@@ -417,13 +417,13 @@ export async function loadSVG(file) {
     }
 }
 
-async function loadDXF(file) {
+export async function loadDXF(file) {
     let helper = new dxfHelper(await readWithReader(file, "readAsText"));
     let dxfTree = helper.toPolylines();
     return dxfTree;
 }
 
-async function loadImage(file) {
+export async function loadImage(file) {
     let url = await readWithReader(file, "readAsDataURL");
 
     try {
@@ -434,11 +434,11 @@ async function loadImage(file) {
     }
 }
 
-async function loadGcode(file) {
+export async function loadGcode(file) {
     return await readWithReader(file, "readAsText");
 }
 
-async function loadDefault(file) {
+export async function loadDefault(file) {
     return await readWithReader(file, "readAsDataURL");
 }
 

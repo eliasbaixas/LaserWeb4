@@ -30,11 +30,12 @@ import { connect } from 'react-redux'
 // Main components
 import Sidebar from './sidebar'
 import WorkspaceSwitcher from './workspace-switcher'
+import AppShell2 from './app-shell2'
 
 // Inner components
 import Com from './com'
 import ControlSwitcher from './control-switcher'
-import Cam from './cam'
+import WorkshopSwitcher from './workshop-switcher'
 import Quote from './quote'
 import Settings from './settings'
 import About from './about'
@@ -104,13 +105,19 @@ const updateTitle=()=>{
 }
 
 class LaserWeb extends React.Component {
+    constructor(props) {
+        super(props)
+        this.state = {
+            appShell2: window.localStorage.getItem('LaserWeb.appShell2') === 'true' || /[?&]ui2=1/.test(window.location.search)
+        }
+    }
 
     UNSAFE_componentWillReceiveProps(nextProps) {
         updateTitle();
     }
 
     shouldComponentUpdate(nextProps, nextState) {
-        return nextProps.documents !== this.props.documents;
+        return nextProps.documents !== this.props.documents || nextState.appShell2 !== this.state.appShell2;
     }
 
     UNSAFE_componentWillMount() {
@@ -184,20 +191,47 @@ class LaserWeb extends React.Component {
             );
         }
 
+        const panes = (
+            <Sidebar ref="sidebar"
+                hideDock={this.state.appShell2}
+                initialSize={this.state.appShell2 ? 398 : 300}
+                style={{ flexGrow: 0, flexShrink: 0 }}>
+                <WorkshopSwitcher id="cam" title={t("Files")} icon="pencil-square-o" />
+                <Com id="com" title={t("Comms")} icon="plug" />
+                <ControlSwitcher id="jog" title={t("Control")} icon="arrows-alt" />
+                <Settings id="settings" title={t("Settings")} icon="cogs" />
+                <About id="about" title={t("About")} icon="question" />
+            </Sidebar>
+        )
+
+        const body = (
+            <div style={{ display: 'flex', flexDirection: 'row', height: '100%', flex: 1, minWidth: 0 }}>
+                {panes}
+                <WorkspaceSwitcher />
+                <ConnectionStatus />
+            </div>
+        )
+
+        const setClassic = () => {
+            window.localStorage.setItem('LaserWeb.appShell2', 'false')
+            this.setState({ appShell2: false })
+        }
+
         return (
             <AllowCapture style={{ height: '100%' }}>
                 <DocumentCacheHolder style={{ width: '100%' }} documents={this.props.documents}>
-                    <div style={{ display: 'flex', flexDirection: 'row', height: '100%' }}>
-                        <Sidebar ref="sidebar" style={{ flexGrow: 0, flexShrink: 0 }}>
-                            <Cam id="cam" title={t("Files")} icon="pencil-square-o" />
-                            <Com id="com" title={t("Comms")} icon="plug" />
-                            <ControlSwitcher id="jog" title={t("Control")} icon="arrows-alt" />
-                            <Settings id="settings" title={t("Settings")} icon="cogs" />
-                            <About id="about" title={t("About")} icon="question" />
-                        </Sidebar>
-                        <WorkspaceSwitcher />
-                        <ConnectionStatus />
-                    </div>
+                    {this.state.appShell2 ? (
+                        <AppShell2 onClassic={setClassic}>{body}</AppShell2>
+                    ) : (
+                        <div style={{ height: '100%', position: 'relative' }}>
+                            {body}
+                            <button onClick={() => { window.localStorage.setItem('LaserWeb.appShell2', 'true'); this.setState({ appShell2: true }) }}
+                                title={t('Try UI 2.0')}
+                                style={{ position: 'absolute', top: 10, left: 92, zIndex: 8, padding: '3px 10px', borderRadius: 12, fontSize: 12, border: '1px solid #4da3ff55', cursor: 'pointer', background: 'rgba(20,23,28,.75)', color: '#4da3ff' }}>
+                                {t('UI 2.0')}
+                            </button>
+                        </div>
+                    )}
                 </DocumentCacheHolder>
             </AllowCapture>
         )
