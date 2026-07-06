@@ -278,6 +278,47 @@
 }
 .app2-nav-item.active span { font-weight: 700; }
 .app2-nav-fill { flex: 1; }
+.app2-pill.on {
+    background: var(--fp-go-soft);
+    border-color: var(--fp-go-line);
+    color: var(--fp-go-deep);
+}
+.app2-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.app2-content { flex: 1; min-height: 0; display: flex; }
+.app2-content > * { flex: 1; min-width: 0; }
+
+/* while the drawer is open, the classic workspace console is redundant */
+.app2-has-console #command-history { display: none; }
+
+/* console drawer: hosts the shared CommandHistory under the whole layout */
+.app2-console {
+    flex: 0 0 218px;
+    display: flex;
+    min-height: 0;
+    background: var(--fp-surface);
+    border-top: 1px solid var(--fp-border-input);
+    z-index: 15;
+}
+.app2-console .commandHistory {
+    flex: 1;
+    width: auto;
+    margin: 0;
+    padding-top: 0;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+}
+.app2-console .commandHistory .code {
+    height: calc(218px - 2.6em);
+    padding: 6px 12px 0;
+}
+.app2-console .commandHistory code { border-bottom-color: var(--fp-border-input); }
+.app2-console .commandHistory .form {
+    border-top: 1px solid var(--fp-border-input);
+    background: var(--fp-panel);
+    padding: 3px 6px;
+}
+.app2-console .commandHistory input[type="text"] { font-family: var(--fp-mono); font-size: 12px; }
 
 /* --- Workshop 2.0 ------------------------------------------------------- */
 .wk2 {

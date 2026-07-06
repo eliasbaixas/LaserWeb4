@@ -36,6 +36,7 @@ export default class CommandHistory extends React.Component {
 
         this.handleChange.bind(this);
         this.handleKey.bind(this)
+        this.adoptLog = this.adoptLog.bind(this)
     }
     
     handleKey(e) {
@@ -106,16 +107,33 @@ export default class CommandHistory extends React.Component {
         }
     }
 
+    // The log lives in a single shared DOM node (window.commandLog): the last
+    // mounted instance adopts it, and hands it back on unmount through the
+    // 'commandlog-orphaned' event so any surviving instance can re-adopt it
+    // (e.g. the AppShell 2.0 console drawer closing returns the log to the
+    // classic workspace console, which stays mounted underneath).
+    adoptLog() {
+        let node = ReactDOM.findDOMNode(this.refs['code'])
+        if (node && window.commandLog.parentNode !== node) {
+            node.appendChild(window.commandLog)
+            node.scrollTop = node.scrollHeight
+        }
+    }
+
     componentDidMount() {
         if (!window.commandLog)
             window.commandLog = document.createElement('div')
 
-        ReactDOM.findDOMNode(this.refs['code']).appendChild(window.commandLog)
+        this.adoptLog()
+        window.addEventListener('commandlog-orphaned', this.adoptLog)
     }
     componentWillUnmount() {
-        if (window.commandLog)
-            ReactDOM.findDOMNode(this.refs['code']).removeChild(window.commandLog)
-
+        window.removeEventListener('commandlog-orphaned', this.adoptLog)
+        let node = ReactDOM.findDOMNode(this.refs['code'])
+        if (window.commandLog && node && window.commandLog.parentNode === node) {
+            node.removeChild(window.commandLog)
+            window.dispatchEvent(new Event('commandlog-orphaned'))
+        }
     }
 
     static write(message, level, icon) {
@@ -149,7 +167,7 @@ export default class CommandHistory extends React.Component {
 
     render() {
         return (
-            <div id="command-history" className="commandHistory" style={this.props.style}>
+            <div id={this.props.id || 'command-history'} className="commandHistory" style={this.props.style}>
                 <div ref="code" className="code"></div>
                 <div className="form">
                     <Icon name="terminal" fw={true} />

@@ -4,13 +4,16 @@
  * @module
  */
 
-import React from 'react'
+import React, { useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 
 import { selectPane } from '../actions/panes'
 import { setSettingsAttrs } from '../actions/settings'
-import { abortJob, resetMachine } from './com'
+import { abortJob, resetMachine, runCommand } from './com'
+import CommandHistory from './command-history'
 import { t } from '../lib/i18n'
+
+const CONSOLE_KEY = 'LaserWeb.appShell2Console'
 
 const NAV = [
     ['cam', 'th-large', 'Workshop'],
@@ -37,6 +40,12 @@ export default function AppShell2({ children, onClassic }) {
     const com = useSelector(s => s.com)
     const gcode = useSelector(s => s.gcode.content)
     const gcodeDirty = useSelector(s => s.gcode.dirty)
+    const [consoleOpen, setConsoleOpen] = useState(() => window.localStorage.getItem(CONSOLE_KEY) === 'true')
+
+    const toggleConsole = () => {
+        window.localStorage.setItem(CONSOLE_KEY, String(!consoleOpen))
+        setConsoleOpen(!consoleOpen)
+    }
 
     const connected = com.serverConnected && com.machineConnected
     const running = connected && (com.playing || com.machineStatus === 'Run')
@@ -50,7 +59,7 @@ export default function AppShell2({ children, onClassic }) {
     }
 
     return (
-        <div className="app2-shell">
+        <div className={'app2-shell' + (consoleOpen ? ' app2-has-console' : '')}>
             <header className="app2-topbar">
                 <div className="app2-brand">
                     <div className="app2-logo">f</div>
@@ -76,6 +85,12 @@ export default function AppShell2({ children, onClassic }) {
                     title={gcode ? (gcodeDirty ? t('G-code is stale — regenerate in Files') : t('G-code generated — click to open Files')) : t('No G-code loaded — generate it in the Files pane')}>
                     <i className={`fa fa-${gcode ? (gcodeDirty ? 'warning' : 'check') : 'file-o'}`} />
                     <span>{gcode ? (gcodeDirty ? t('Stale G-code') : t('G-code ready')) : t('No G-code')}</span>
+                </button>
+
+                <button className={'app2-pill' + (consoleOpen ? ' on' : '')} onClick={toggleConsole}
+                    title={consoleOpen ? t('Hide the command console') : t('Show the command console')}>
+                    <i className="fa fa-terminal" />
+                    <span>{t('Console')}</span>
                 </button>
 
                 <label className="app2-toggle">
@@ -110,7 +125,14 @@ export default function AppShell2({ children, onClassic }) {
                             onClick={() => dispatch(selectPane(id))} />
                     ))}
                 </nav>
-                {children}
+                <div className="app2-main">
+                    <div className="app2-content">{children}</div>
+                    {consoleOpen && (
+                        <div className="app2-console">
+                            <CommandHistory id="app2-command-history" onCommandExec={runCommand} />
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
     )
