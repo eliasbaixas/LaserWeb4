@@ -24,6 +24,7 @@ export const DOCUMENT_INITIALSTATE = {
     children: [],
     selected: false,
     visible: true,
+    library: false,
     transform2d: null,
     rawPaths: null,
     strokeColor: null,

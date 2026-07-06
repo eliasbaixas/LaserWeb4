@@ -10,6 +10,7 @@ import { useDispatch, useSelector } from 'react-redux'
 import { selectPane } from '../actions/panes'
 import { setSettingsAttrs } from '../actions/settings'
 import { abortJob, resetMachine, runCommand } from './com'
+import { loadFiles } from './cam'
 import CommandHistory from './command-history'
 import { t } from '../lib/i18n'
 
@@ -125,7 +126,13 @@ export default function AppShell2({ children, onClassic }) {
                             onClick={() => dispatch(selectPane(id))} />
                     ))}
                 </nav>
-                <div className="app2-main">
+                <div className="app2-main"
+                    onDragOver={e => { if ([...e.dataTransfer.types].includes('Files')) e.preventDefault() }}
+                    onDrop={e => {
+                        if (![...e.dataTransfer.types].includes('Files')) return
+                        e.preventDefault()
+                        loadFiles(dispatch, e.dataTransfer.files)
+                    }}>
                     <div className="app2-content">{children}</div>
                     {consoleOpen && (
                         <div className="app2-console">

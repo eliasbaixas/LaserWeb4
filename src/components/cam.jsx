@@ -158,20 +158,7 @@ export function Cam() {
     }, [ dispatch ]);
     
     let handleLoadDocument = useCallback((e, modifiers = {}) => {
-        // TODO: report errors
-        for (let file of e.target.files) {
-            if (file.name.substr(-4) === '.svg') {
-                loadSVG(file).then(({ parser, tags }) => dispatch(loadDocument(file, { parser, tags }, modifiers)));
-            } else if (file.name.substr(-4).toLowerCase() === '.dxf') {
-                loadDXF(file).then((dxfTree) => dispatch(loadDocument(file, dxfTree, modifiers)));
-            } else if (file.type.substring(0, 6) === 'image/') {
-                loadImage(file).then(([ url, image ]) => dispatch(loadDocument(file, url, modifiers, image)));
-            } else if (file.name.match(/\.(nc|gc|gcode)$/gi)) {
-                loadGcode(file).then((gcode) => dispatch(setGcode(gcode)));
-            } else {
-                loadDefault(file).then((url) => dispatch(loadDocument(file, url, modifiers)));
-            }
-        }
+        loadFiles(dispatch, e.target.files, modifiers);
     }, [ dispatch ]);
 
     let toggleDocumentExpanded = useCallback((doc) => {
@@ -244,14 +231,17 @@ export function Cam() {
         subtreeIds(rootId).forEach(id => dispatch(setDocumentAttrs({ visible }, id)));
     let sendSelectedToLibrary = () => {
         new Set(documents.filter(d => d.selected).map(d => rootOf(d.id)))
-            .forEach(rootId => setSubtreeVisible(rootId, false));
+            .forEach(rootId => {
+                dispatch(setDocumentAttrs({ library: true }, rootId));
+                setSubtreeVisible(rootId, false);
+            });
         dispatch(selectDocuments(false));
     };
-    // a root is "in the library" only while its whole subtree is hidden;
-    // adding one child back to the bed brings the file into the tree again
+    // membership is the explicit `library` flag on the root (the eye icon
+    // only toggles visibility, it never archives); archived files also stay
+    // hidden so they are neither drawn nor cut
     let byId = new Map(documents.map(d => [d.id, d]));
-    let isFullyHidden = (rootId) => subtreeIds(rootId).every(id => byId.get(id)?.visible === false);
-    let libraryRoots = documents.filter(d => d.isRoot && d.visible === false && isFullyHidden(d.id));
+    let libraryRoots = documents.filter(d => d.isRoot && d.library);
     let libraryIds = new Set(libraryRoots.map(d => d.id));
     let bedDocuments = documents.filter(d => !libraryIds.has(d.id));
 
@@ -318,7 +308,7 @@ export function Cam() {
                                                 </button> : <span style={{ width: 10 }} />}
                                             <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#777' }}>{d.name}</span>
                                             <button className="btn btn-xs btn-success" title={t("Add the whole file to the bed")}
-                                                onClick={() => setSubtreeVisible(d.id, true)}><Icon name="level-up" /></button>
+                                                onClick={() => { dispatch(setDocumentAttrs({ library: false }, d.id)); setSubtreeVisible(d.id, true); }}><Icon name="level-up" /></button>
                                             <button className="btn btn-xs btn-danger" title={t("Delete from the library")}
                                                 onClick={() => subtreeIds(d.id).forEach(id => dispatch(removeDocument(id)))}><Icon name="trash" /></button>
                                         </div>
@@ -329,7 +319,7 @@ export function Cam() {
                                                 <div key={cid} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '0 2px 0 22px' }}>
                                                     <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#999', fontSize: '0.9em' }}>{c.name}</span>
                                                     <button className="btn btn-xs btn-success" title="Add only this subtree to the bed (the file leaves the library and shows in the tree; the rest stays hidden)"
-                                                        onClick={() => { dispatch(setDocumentAttrs({ visible: true }, d.id)); setSubtreeVisible(cid, true); }}><Icon name="level-up" /></button>
+                                                        onClick={() => { dispatch(setDocumentAttrs({ visible: true, library: false }, d.id)); setSubtreeVisible(cid, true); }}><Icon name="level-up" /></button>
                                                 </div>
                                             );
                                         })}
@@ -382,6 +372,26 @@ export function Cam() {
             </Alert>
         </div>
     );
+}
+
+// Route each file to the right loader by extension/mime and dispatch the
+// resulting document (or gcode). Shared by the classic pane, Workshop 2.0
+// and the drag-and-drop targets.
+export function loadFiles(dispatch, files, modifiers = {}) {
+    // TODO: report errors
+    for (let file of files) {
+        if (file.name.substr(-4) === '.svg') {
+            loadSVG(file).then(({ parser, tags }) => dispatch(loadDocument(file, { parser, tags }, modifiers)));
+        } else if (file.name.substr(-4).toLowerCase() === '.dxf') {
+            loadDXF(file).then((dxfTree) => dispatch(loadDocument(file, dxfTree, modifiers)));
+        } else if (file.type.substring(0, 6) === 'image/') {
+            loadImage(file).then(([ url, image ]) => dispatch(loadDocument(file, url, modifiers, image)));
+        } else if (file.name.match(/\.(nc|gc|gcode)$/gi)) {
+            loadGcode(file).then((gcode) => dispatch(setGcode(gcode)));
+        } else {
+            loadDefault(file).then((url) => dispatch(loadDocument(file, url, modifiers)));
+        }
+    }
 }
 
 async function readWithReader(file, method) {

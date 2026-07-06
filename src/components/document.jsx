@@ -41,6 +41,56 @@ export function selectedDocuments(documents) {
     return documents.filter(d => isSelected(documents, d)).map(d => d.id);
 }
 
+// Walk up from the point under the cursor to the nearest operation drop
+// target (an element carrying data-operation-id; 'new' creates an operation).
+export function operationTargetAt(clientX, clientY) {
+    let elem = document.elementFromPoint(clientX, clientY);
+    while (elem && !(elem.dataset && elem.dataset.operationId))
+        elem = elem.parentElement;
+    return elem;
+}
+
+// CAM model checkpoint shared by every "attach documents to an operation"
+// gesture (classic drag, Workshop 2.0 drag, Create Single/Multiple buttons):
+// attaching a document that another operation already uses is legitimate
+// (two treatments on the same object), but often the user wants an
+// independent copy. Ask — or clone silently with altKey held.
+// NOTE: expects docIds to be the current selection (cloning clones the
+// selection).
+export function dropDocumentsOnOperation(dispatch, docIds, operationId, isTab, altKey, customFinish) {
+    let finish = customFinish || ((ids) => {
+        if (operationId === 'new')
+            dispatch(addOperation({ documents: ids }));
+        else
+            dispatch(operationAddDocuments(operationId, isTab, ids));
+    });
+
+    let state = GlobalStore().getState();
+    let attached = computeAttachedIds(state.documents, state.operations);
+    let alreadyUsed = docIds.some(id => attached.has(id));
+    if (!alreadyUsed)
+        return finish(docIds);
+
+    let cloneAndFinish = () => {
+        let before = new Set(GlobalStore().getState().documents.map(d => d.id));
+        dispatch(cloneDocumentSelected());
+        let after = GlobalStore().getState().documents;
+        let newDocs = after.filter(d => !before.has(d.id));
+        let cloneRoots = newDocs.filter(d =>
+            !newDocs.some(p => p.children && p.children.includes(d.id)));
+        finish(cloneRoots.map(d => d.id));
+    };
+
+    if (altKey)
+        return cloneAndFinish();
+    confirm(
+        'This document is already used by another operation. ' +
+        'OK = add an independent CLONE (its own copy, move it freely). ' +
+        'Cancel = REFERENCE the same object again (a second treatment on the same piece, e.g. engrave + cut). ' +
+        'Tip: drop with Alt held to clone without asking.',
+        (ok) => { if (ok) cloneAndFinish(); else finish(docIds); });
+}
+
 class DocumentLabel extends React.Component {
     UNSAFE_componentWillMount() {
         this.onPointerDown = this.onPointerDown.bind(this);
@@ -89,49 +139,12 @@ class DocumentLabel extends React.Component {
     }
 
     drag(clientX, clientY, altKey) {
-        let elem = document.elementFromPoint(clientX, clientY);
-        while (elem && !elem.dataset.operationId)
-            elem = elem.parentElement;
+        let elem = operationTargetAt(clientX, clientY);
         if (!elem)
             return;
         let documents = this.props.documents.filter(d => isSelected(this.props.documents, d)).map(d => d.id);
-
-        let finish = (docIds) => {
-            if (elem.dataset.operationId === 'new')
-                this.props.dispatch(addOperation({ documents: docIds }));
-            else
-                this.props.dispatch(operationAddDocuments(elem.dataset.operationId, elem.dataset.operationTabs, docIds));
-        };
-
-        // CAM model checkpoint: dropping a document that another operation
-        // already uses is legitimate (two treatments on the same object),
-        // but often the user wants an independent copy. Ask — or clone
-        // silently with Alt held.
-        let state = GlobalStore().getState();
-        let attached = computeAttachedIds(state.documents, state.operations);
-        let alreadyUsed = documents.some(id => attached.has(id));
-        if (!alreadyUsed)
-            return finish(documents);
-
-        let cloneAndFinish = () => {
-            let before = new Set(GlobalStore().getState().documents.map(d => d.id));
-            this.props.dispatch(cloneDocumentSelected());
-            let after = GlobalStore().getState().documents;
-            let newDocs = after.filter(d => !before.has(d.id));
-            let newIds = new Set(newDocs.map(d => d.id));
-            let cloneRoots = newDocs.filter(d =>
-                !newDocs.some(p => p.children && p.children.includes(d.id)));
-            finish(cloneRoots.map(d => d.id));
-        };
-
-        if (altKey)
-            return cloneAndFinish();
-        confirm(
-            'This document is already used by another operation. ' +
-            'OK = add an independent CLONE (its own copy, move it freely). ' +
-            'Cancel = REFERENCE the same object again (a second treatment on the same piece, e.g. engrave + cut). ' +
-            'Tip: drop with Alt held to clone without asking.',
-            (ok) => { if (ok) cloneAndFinish(); else finish(documents); });
+        dropDocumentsOnOperation(this.props.dispatch, documents,
+            elem.dataset.operationId, elem.dataset.operationTabs, altKey);
     }
 
     onPointerUp(e) {

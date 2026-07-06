@@ -320,6 +320,35 @@
 }
 .app2-console .commandHistory input[type="text"] { font-family: var(--fp-mono); font-size: 12px; }
 
+/* --- Workshop 2.0: drag & drop ------------------------------------------ */
+.wk2-drag-ghost {
+    position: fixed;
+    z-index: 1000;
+    pointer-events: none;
+    transform: translate(-50%, -120%);
+    background: var(--fp-go);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 8px;
+    box-shadow: 0 6px 18px oklch(0 0 0 / 0.25);
+    max-width: 260px;
+    overflow: hidden;
+}
+.wk2-drop-new {
+    border: 2px dashed var(--fp-border-input);
+    border-radius: var(--fp-radius);
+    color: var(--fp-text-muted);
+    font-size: 12px;
+    text-align: center;
+    padding: 9px 8px;
+    margin: 2px 0 6px;
+}
+.wk2-drop-new i { margin-right: 6px; }
+.wk2-op-card[data-operation-id]:hover { border-color: var(--fp-go-line); }
+.wk2-dropping { outline: 3px dashed var(--fp-go); outline-offset: -3px; }
+
 /* --- Workshop 2.0 ------------------------------------------------------- */
 .wk2 {
     height: calc(100% + 20px);

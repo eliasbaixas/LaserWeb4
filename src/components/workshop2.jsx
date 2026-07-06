@@ -10,12 +10,12 @@ import { useDispatch, useSelector } from 'react-redux'
 import convert from 'color-convert'
 
 import {
-    DOCUMENT_FILETYPES, loadSVG, loadDXF, loadImage, loadGcode, loadDefault,
+    DOCUMENT_FILETYPES, loadSVG, loadGcode, loadFiles,
 } from './cam'
 import { loadDocument, setDocumentAttrs, cloneDocumentSelected, selectDocument, selectDocuments, toggleSelectDocument, toggleVisibleDocument, colorDocumentSelected, removeDocument, removeDocumentSelected, selectDocumentsByColor } from '../actions/document'
 import { setGcode, generatingGcode } from '../actions/gcode'
 import { resetWorkspace } from '../actions/laserweb'
-import { selectedDocuments } from './document'
+import { selectedDocuments, dropDocumentsOnOperation, operationTargetAt } from './document'
 import { documentCacheContext } from './document-cache'
 import { addOperation, clearOperations, moveOperation, operationRemoveDocument, removeOperation, setCurrentOperation, setOperationAttrs } from '../actions/operation'
 import { OPERATION_TYPES } from './operation/definitions'
@@ -157,13 +157,7 @@ function DocumentTree({ documents, roots, selectedIds, filter, onToggleExpanded 
                     <button className="wk2-icon-btn" disabled={!doc.children.length} onClick={() => onToggleExpanded(doc)}>
                         {doc.children.length ? <Icon name={doc.expanded ? 'caret-down' : 'caret-right'} /> : null}
                     </button>
-                    <button className="wk2-doc-main" onClick={e => {
-                        if (e.ctrlKey || e.shiftKey) dispatch(toggleSelectDocument(doc.id))
-                        else dispatch(selectDocument(doc.id))
-                    }}>
-                        <span>{doc.name}</span>
-                        <small>{typeOf(doc)}</small>
-                    </button>
+                    <DraggableDocName doc={doc} documents={documents} typeLabel={typeOf(doc)} />
                     <button className="wk2-icon-btn" title={visible ? t('Hide') : t('Show')} onClick={() => dispatch(toggleVisibleDocument(doc.id))}>
                         <Icon name={visible ? 'eye' : 'eye-slash'} />
                     </button>
@@ -181,6 +175,78 @@ function DocumentTree({ documents, roots, selectedIds, filter, onToggleExpanded 
     }
 
     return <div className="wk2-doc-tree">{roots.map(doc => row(doc))}</div>
+}
+
+/**
+ * Document name that can be dragged onto an operation card (or the dashed
+ * "new operation" strip) — same pointer protocol as the classic pane:
+ * targets carry data-operation-id, the shared checkpoint asks
+ * reference-vs-clone, Alt clones silently.
+ */
+function DraggableDocName({ doc, documents, typeLabel }) {
+    const dispatch = useDispatch()
+    const [drag, setDrag] = useState(null)
+    const stateRef = useRef({})
+
+    const onPointerDown = e => {
+        e.preventDefault()
+        e.currentTarget.setPointerCapture(e.pointerId)
+        const s = stateRef.current
+        s.active = true
+        s.x0 = e.clientX
+        s.y0 = e.clientY
+        s.started = false
+        s.isToggle = e.ctrlKey || e.shiftKey || e.metaKey
+        s.deferSelect = false
+        if (doc.selected)
+            s.deferSelect = true // may be the start of a multi-doc drag
+        else if (s.isToggle)
+            dispatch(toggleSelectDocument(doc.id))
+        else
+            dispatch(selectDocument(doc.id))
+    }
+    const onPointerMove = e => {
+        const s = stateRef.current
+        if (!s.active) return
+        e.preventDefault()
+        if (!s.started && Math.hypot(e.clientX - s.x0, e.clientY - s.y0) > 5)
+            s.started = true
+        if (s.started)
+            setDrag({ x: e.clientX, y: e.clientY })
+    }
+    const onPointerUp = e => {
+        const s = stateRef.current
+        if (!s.active) return
+        e.preventDefault()
+        if (s.started) {
+            const target = operationTargetAt(e.clientX, e.clientY)
+            if (target)
+                dropDocumentsOnOperation(dispatch, selectedDocuments(documents),
+                    target.dataset.operationId, target.dataset.operationTabs, e.altKey)
+        } else if (s.deferSelect) {
+            if (s.isToggle) dispatch(toggleSelectDocument(doc.id))
+            else dispatch(selectDocument(doc.id))
+        }
+        stateRef.current = {}
+        setDrag(null)
+    }
+    const onPointerCancel = () => { stateRef.current = {}; setDrag(null) }
+
+    return (
+        <React.Fragment>
+            <button className="wk2-doc-main" style={{ touchAction: 'none' }}
+                onPointerDown={onPointerDown} onPointerMove={onPointerMove}
+                onPointerUp={onPointerUp} onPointerCancel={onPointerCancel}>
+                <span>{doc.name}</span>
+                <small>{typeLabel}</small>
+            </button>
+            {drag && (
+                <div className="wk2-drag-ghost" style={{ left: drag.x, top: drag.y }}>
+                    {documents.filter(d => d.selected).map(d => <div key={d.id}>{d.name}</div>)}
+                </div>
+            )}
+        </React.Fragment>
+    )
 }
 
 function ParamInput({ label, value, units, onChange }) {
@@ -201,7 +267,9 @@ function OperationList2({ documents, operations, currentOperation, settings }) {
     const byId = new Map(documents.map(d => [d.id, d]))
     const hasSelected = selectedIds.length > 0
 
-    const createMultiple = () => selectedIds.forEach(id => dispatch(addOperation({ documents: [id] })))
+    const createSingle = e => dropDocumentsOnOperation(dispatch, selectedIds, 'new', false, e.altKey)
+    const createMultiple = e => dropDocumentsOnOperation(dispatch, selectedIds, 'new', false, e.altKey,
+        ids => ids.forEach(id => dispatch(addOperation({ documents: [id] }))))
     const clearAll = () => confirm('Are you sure?', ok => ok && dispatch(clearOperations()))
     const selectOp = op => {
         dispatch(setCurrentOperation(op.id))
@@ -213,7 +281,7 @@ function OperationList2({ documents, operations, currentOperation, settings }) {
         <div className="wk2-ops">
             <div className="wk2-ops-toolbar">
                 <button className="d2-btn" disabled={!hasSelected && !settings.toolCreateEmptyOps}
-                    onClick={() => dispatch(addOperation({ documents: selectedIds }))}>
+                    onClick={createSingle}>
                     <i className="fa fa-object-group" /> {t('Create Single')}
                 </button>
                 <button className="d2-btn" disabled={!hasSelected} onClick={createMultiple}>
@@ -224,13 +292,18 @@ function OperationList2({ documents, operations, currentOperation, settings }) {
                 </button>
             </div>
 
+            <div className="wk2-drop-new" data-operation-id="new">
+                <i className="fa fa-hand-lizard-o" /> {t('Drag documents here to create an operation')}
+            </div>
+
             {!operations.length ? (
                 <div className="wk2-empty">{documents.length ? t('Select documents, then create an operation') : t('Add documents first')}</div>
             ) : operations.map((op, index) => {
                 const selected = currentOperation === op.id
                 const raster = /Raster/i.test(op.type)
                 return (
-                    <article key={op.id} className={'wk2-op-card' + (selected ? ' selected' : '') + (!op.enabled ? ' disabled' : '')}
+                    <article key={op.id} data-operation-id={op.id}
+                        className={'wk2-op-card' + (selected ? ' selected' : '') + (!op.enabled ? ' disabled' : '')}
                         onClick={() => selectOp(op)}>
                         <header>
                             <span className="wk2-op-order">#{index + 1}</span>
@@ -290,21 +363,22 @@ export default function Workshop2() {
     const generationRef = useRef()
     const [filter, setFilter] = useState()
     const [libraryOpen, setLibraryOpen] = useState(null)
+    const [dropHover, setDropHover] = useState(0)
+
+    const hasFiles = e => e.dataTransfer && [...e.dataTransfer.types].includes('Files')
+    const onDragOver = e => { if (hasFiles(e)) { e.preventDefault(); e.stopPropagation() } }
+    const onDragEnter = e => { if (hasFiles(e)) setDropHover(h => h + 1) }
+    const onDragLeave = e => { if (hasFiles(e)) setDropHover(h => Math.max(0, h - 1)) }
+    const onDrop = e => {
+        if (!hasFiles(e)) return
+        e.preventDefault()
+        e.stopPropagation()
+        setDropHover(0)
+        loadFiles(dispatch, e.dataTransfer.files)
+    }
 
     const handleLoadDocument = useCallback((e, modifiers = {}) => {
-        for (const file of e.target.files) {
-            if (file.name.substr(-4) === '.svg') {
-                loadSVG(file).then(({ parser, tags }) => dispatch(loadDocument(file, { parser, tags }, modifiers)))
-            } else if (file.name.substr(-4).toLowerCase() === '.dxf') {
-                loadDXF(file).then(dxfTree => dispatch(loadDocument(file, dxfTree, modifiers)))
-            } else if (file.type.substring(0, 6) === 'image/') {
-                loadImage(file).then(([url, image]) => dispatch(loadDocument(file, url, modifiers, image)))
-            } else if (file.name.match(/\.(nc|gc|gcode)$/gi)) {
-                loadGcode(file).then(text => dispatch(setGcode(text)))
-            } else {
-                loadDefault(file).then(url => dispatch(loadDocument(file, url, modifiers)))
-            }
-        }
+        loadFiles(dispatch, e.target.files, modifiers)
     }, [dispatch])
 
     const loadSnapshot = useCallback((file, keys) => {
@@ -379,12 +453,16 @@ export default function Workshop2() {
         subtreeIds(rootId).forEach(id => dispatch(setDocumentAttrs({ visible }, id)))
     const sendSelectedToLibrary = () => {
         new Set(documents.filter(d => d.selected).map(d => rootOf(d.id)))
-            .forEach(rootId => setSubtreeVisible(rootId, false))
+            .forEach(rootId => {
+                dispatch(setDocumentAttrs({ library: true }, rootId))
+                setSubtreeVisible(rootId, false)
+            })
         dispatch(selectDocuments(false))
     }
+    // membership is the explicit `library` flag on the root: the eye icon
+    // only toggles visibility, it never archives
     const byId = new Map(documents.map(d => [d.id, d]))
-    const isFullyHidden = rootId => subtreeIds(rootId).every(id => byId.get(id)?.visible === false)
-    const libraryRoots = documents.filter(d => d.isRoot && d.visible === false && isFullyHidden(d.id))
+    const libraryRoots = documents.filter(d => d.isRoot && d.library)
     const libraryIds = new Set(libraryRoots.map(d => d.id))
     const bedDocuments = documents.filter(d => !libraryIds.has(d.id))
 
@@ -397,7 +475,8 @@ export default function Workshop2() {
     const gcodeDone = !!gcode && !dirty
 
     return (
-        <div className="wk2">
+        <div className={'wk2' + (dropHover ? ' wk2-dropping' : '')}
+            onDragOver={onDragOver} onDragEnter={onDragEnter} onDragLeave={onDragLeave} onDrop={onDrop}>
             <div className="wk2-header">
                 <div>
                     <h1>{t('Workshop')}</h1>
@@ -431,14 +510,14 @@ export default function Workshop2() {
                                             <Icon name={libraryOpen === d.id ? 'caret-down' : 'caret-right'} />
                                         </button> : <span />}
                                     <strong>{d.name}</strong>
-                                    <button title={t('Add the whole file to the bed')} onClick={() => setSubtreeVisible(d.id, true)}><Icon name="level-up" /></button>
+                                    <button title={t('Add the whole file to the bed')} onClick={() => { dispatch(setDocumentAttrs({ library: false }, d.id)); setSubtreeVisible(d.id, true) }}><Icon name="level-up" /></button>
                                     <button title={t('Delete from the library')} onClick={() => subtreeIds(d.id).forEach(id => dispatch(removeDocument(id)))}><Icon name="trash" /></button>
                                     {libraryOpen === d.id && (d.children || []).map(cid => {
                                         const child = byId.get(cid)
                                         if (!child) return null
                                         return <div key={cid} className="wk2-library-child">
                                             <span>{child.name}</span>
-                                            <button onClick={() => { dispatch(setDocumentAttrs({ visible: true }, d.id)); setSubtreeVisible(cid, true) }}><Icon name="level-up" /></button>
+                                            <button onClick={() => { dispatch(setDocumentAttrs({ visible: true, library: false }, d.id)); setSubtreeVisible(cid, true) }}><Icon name="level-up" /></button>
                                         </div>
                                     })}
                                 </div>
