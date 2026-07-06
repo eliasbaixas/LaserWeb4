@@ -30,6 +30,8 @@ import { FileField, ColorPicker, SearchButton } from './forms'
 import Icon from './font-awesome'
 import { prompt, confirm } from './laserweb'
 import CommandHistory from './command-history'
+import MaterialDb2 from './material-database2'
+import { saveOperationAsPreset } from './material-database'
 import { getSubset } from 'redux-localstorage-filter'
 
 let __workshopInterval
@@ -249,6 +251,25 @@ function DraggableDocName({ doc, documents, typeLabel }) {
     )
 }
 
+/** Material library on the op card: wand applies a preset, floppy saves one. */
+function OpMaterialButtons({ op }) {
+    const dispatch = useDispatch()
+    const groups = useSelector(s => s.materialDatabase)
+    const [showPicker, setShowPicker] = useState(false)
+    return (
+        <React.Fragment>
+            <button title={t('Apply a material preset')} onClick={() => setShowPicker(true)}><Icon name="magic" /></button>
+            <button title={t('Save these settings as a material preset')}
+                onClick={() => saveOperationAsPreset(dispatch, groups, op)}><Icon name="floppy-o" /></button>
+            {showPicker && (
+                <MaterialDb2 mode="pick" show onHide={() => setShowPicker(false)}
+                    types={Object.keys(OPERATION_TYPES)}
+                    onApplyPreset={(type, attrs) => dispatch(setOperationAttrs({ ...attrs, type }, op.id))} />
+            )}
+        </React.Fragment>
+    )
+}
+
 function ParamInput({ label, value, units, onChange }) {
     return (
         <label className="wk2-param">
@@ -312,6 +333,7 @@ function OperationList2({ documents, operations, currentOperation, settings }) {
                                 {Object.keys(OPERATION_TYPES).map(type => <option key={type}>{type}</option>)}
                             </select>
                             <div className="wk2-op-actions" onClick={e => e.stopPropagation()}>
+                                <OpMaterialButtons op={op} />
                                 <button title={op.enabled ? t('Disable') : t('Enable')} onClick={() => dispatch(setOperationAttrs({ enabled: !op.enabled }, op.id))}><Icon name="power-off" /></button>
                                 <button title={t('Move up')} onClick={() => dispatch(moveOperation(op.id, -1))}><Icon name="arrow-up" /></button>
                                 <button title={t('Move down')} onClick={() => dispatch(moveOperation(op.id, +1))}><Icon name="arrow-down" /></button>

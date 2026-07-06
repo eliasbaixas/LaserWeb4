@@ -28,6 +28,7 @@ import { FileStorage, LocalStorage } from '../lib/storages';
 import { cast } from '../lib/helpers';
 import { materialTreeToTabular, materialTabularToTree, arr2csv, csv2arr } from '../lib/material-database';
 import { alert, prompt, confirm } from './laserweb';
+import MaterialDb2 from './material-database2';
 
 import '../styles/material-database.css';
 
@@ -379,7 +380,7 @@ function PresetOperationSettings({ caption, operation, isEditable, onCellChange 
             <FormGroup>
                 <ControlLabel>Type</ControlLabel>
                 <FormControl componentClass="select" placeholder="type" value={operation.type} onChange={(e) => onCellChange(operation.id, { type: e.target.value })}>
-                    {Object.keys(OPERATION_TYPES).map((operation, i) => { return <operation key={i} value={operation}>{operation}</operation> })}
+                    {Object.keys(OPERATION_TYPES).map((operation, i) => { return <option key={i} value={operation}>{operation}</option> })}
                 </FormControl>
                 <FormControl.Feedback />
             </FormGroup>
@@ -524,6 +525,7 @@ function MaterialDatabasePicker({ show, onHide, types, onApplyPreset }) {
 
 export function MaterialDatabaseButton({ children }) {
     let [ showModal, setShowModal ] = useState(false);
+    let useLegacy = useSelector((state) => state.settings.useLegacyMaterialDatabase);
 
     function closeModal(e) {
         if (e) { e.stopPropagation(); }
@@ -533,7 +535,9 @@ export function MaterialDatabaseButton({ children }) {
     return (
         <Button bsStyle="primary" block onClick={() => setShowModal(true)}>
             {children}
-            <MaterialDatabaseEditor show={showModal} onHide={closeModal} />
+            {useLegacy
+                ? <MaterialDatabaseEditor show={showModal} onHide={closeModal} />
+                : <MaterialDb2 mode="manage" show={showModal} onHide={closeModal} />}
         </Button>
     )
 }
@@ -571,6 +575,24 @@ function choose(message, options, value, callback = console.log.bind(console)) {
 
 const REMOVE_PRESET_KEYS = new Set([ 'id', 'documents' ]);
 
+// Shared "save this operation as a preset" flow (grouping chooser + name
+// prompt), used by the classic operation row and the Workshop 2.0 cards.
+export function saveOperationAsPreset(dispatch, groups, operation) {
+    let options = groups
+        .filter((group) => (!group._locked))
+        .map((group) => ({ label: group.name, value: group.name }));
+
+    choose("Operation grouping?", options, DEFAULT_GROUPING_NAME, (grouping) => {
+        if (grouping != null) {
+            prompt("Operation Name? Blank is random", operation.name, (name) => {
+                if (name != null) {
+                    dispatch(newPreset(operation, grouping, name));
+                }
+            });
+        }
+    });
+}
+
 export function MaterialPickerButton({ className, types, children, onApplyPreset }) {
     let groups = useSelector(selectGroups);
     let [ showModal, setShowModal ] = useState(false);
@@ -588,11 +610,15 @@ export function MaterialPickerButton({ className, types, children, onApplyPreset
         setShowModal(false);
     }
 
+    let useLegacy = useSelector((state) => state.settings.useLegacyMaterialDatabase);
+
     return <>
         <Button title="Load from Material Database" bsStyle="danger" className={className} onClick={() => setShowModal(true)}>
             {children}
         </Button>
-        <MaterialDatabasePicker types={types} show={showModal} onHide={closeModal} onApplyPreset={(operationId) => { handleApplyPreset(operationId) }} />
+        {useLegacy
+            ? <MaterialDatabasePicker types={types} show={showModal} onHide={closeModal} onApplyPreset={(operationId) => { handleApplyPreset(operationId) }} />
+            : <MaterialDb2 mode="pick" types={types} show={showModal} onHide={closeModal} onApplyPreset={onApplyPreset} />}
     </>;
 }
 
@@ -602,19 +628,7 @@ export function MaterialSaveButton({ className, types, children, operation }) {
     let [ showModal, setShowModal ] = useState(false);
     
     function handleNewPreset() {
-        let options = groups
-            .filter((group) => (!group._locked))
-            .map((group) => ({ label: group.name, value: group.name }));
-
-        choose("Operation grouping?", options, DEFAULT_GROUPING_NAME, (grouping) => {
-            if (grouping != null) {
-                prompt("Operation Name? Blank is random", operation.name, (name) => {
-                    if (name != null) {
-                        dispatch(newPreset(operation, grouping, name));
-                    }
-                });
-            }
-        });
+        saveOperationAsPreset(dispatch, groups, operation);
     }
     
     let closeModal = (e) => {
